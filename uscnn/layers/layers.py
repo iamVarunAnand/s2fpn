@@ -1,15 +1,14 @@
 # import the necessary packages
 from ..utils import sparse2tensor, spmatmul
 from torch.nn.parameter import Parameter
+from ..meshes import MESHES
 from torch import nn
-import pickle
 import torch
 import math
-import os
 
 
 class _MeshConv(nn.Module):
-    def __init__(self, in_channels, out_channels, mesh_file, stride=1, bias=True):
+    def __init__(self, in_channels, out_channels, mesh_lvl, stride=1, bias=True):
         # assert for supported strides
         assert stride in [1, 2]
 
@@ -31,15 +30,15 @@ class _MeshConv(nn.Module):
         self.coeffs = Parameter(torch.Tensor(out_channels, in_channels, self.ncoeff))
         self.initialise_weights()
 
-        # load mesh file
-        pkl = pickle.load(open(mesh_file, "rb"))
+        # grab the mesh file
+        pkl = MESHES[mesh_lvl]
         self.pkl = pkl
-        self.nv = pkl['V'].shape[0]
+        self.nv = pkl["nv"]
 
         # extract the required matrices
-        G = sparse2tensor(pkl['G'].tocoo())  # gradient matrix V->F, 3#F x #V
-        NS = torch.tensor(pkl['NS'], dtype=torch.float32)  # north-south vector field, #F x 3
-        EW = torch.tensor(pkl['EW'], dtype=torch.float32)  # east-west vector field, #F x 3
+        G = pkl["G"]  # gradient matrix V->F, 3#F x #V
+        NS = pkl["NS"]  # north-south vector field, #F x 3
+        EW = pkl["EW"]  # east-west vector field, #F x 3
 
         # register matrices as non-trainable parameters
         self.register_buffer("G", G)
@@ -58,19 +57,19 @@ class _MeshConv(nn.Module):
 
 
 class MeshConv(_MeshConv):
-    def __init__(self, in_channels, out_channels, mesh_file, stride=1, bias=True):
+    def __init__(self, in_channels, out_channels, mesh_lvl, stride=1, bias=True):
         # make a call to the parent class constructor
-        super(MeshConv, self).__init__(in_channels, out_channels, mesh_file, stride, bias)
+        super(MeshConv, self).__init__(in_channels, out_channels, mesh_lvl, stride, bias)
         pkl = self.pkl
 
         if stride == 2:
-            self.nv_prev = pkl['nv_prev']
-            L = sparse2tensor(pkl['L'].tocsr()[:self.nv_prev].tocoo())  # laplacian matrix V->V
-            F2V = sparse2tensor(pkl['F2V'].tocsr()[:self.nv_prev].tocoo())  # F->V, #V x #F
+            self.nv_prev = pkl["nv_prev"]
+            L = sparse2tensor(pkl["L"].tocsr()[:self.nv_prev].tocoo())  # laplacian matrix V->V
+            F2V = sparse2tensor(pkl["F2V"].tocsr()[:self.nv_prev].tocoo())  # F->V, #V x #F
         else:  # stride == 1
-            self.nv_prev = pkl['V'].shape[0]
-            L = sparse2tensor(pkl['L'].tocoo())
-            F2V = sparse2tensor(pkl['F2V'].tocoo())
+            self.nv_prev = pkl["nv"]
+            L = sparse2tensor(pkl["L"].tocoo())
+            F2V = sparse2tensor(pkl["F2V"].tocoo())
 
         self.register_buffer("L", L)
         self.register_buffer("F2V", F2V)
@@ -107,19 +106,19 @@ class MeshConv(_MeshConv):
 
 
 class MeshConvTranspose(_MeshConv):
-    def __init__(self, in_channels, out_channels, mesh_file, stride=2, bias=True):
+    def __init__(self, in_channels, out_channels, mesh_lvl, stride=2, bias=True):
         # assert for supported strides
         assert(stride == 2)
 
         # make a call to the parent class constructor
-        super(MeshConvTranspose, self).__init__(in_channels, out_channels, mesh_file, stride, bias)
+        super(MeshConvTranspose, self).__init__(in_channels, out_channels, mesh_lvl, stride, bias)
 
         pkl = self.pkl
-        self.nv_prev = self.pkl['nv_prev']
+        self.nv_prev = self.pkl["nv_prev"]
         self.nv_pad = self.nv - self.nv_prev
 
-        L = sparse2tensor(pkl['L'].tocoo())  # laplacian matrix V->V
-        F2V = sparse2tensor(pkl['F2V'].tocoo())  # F->V, #V x #F
+        L = sparse2tensor(pkl["L"].tocoo())  # laplacian matrix V->V
+        F2V = sparse2tensor(pkl["F2V"].tocoo())  # F->V, #V x #F
 
         self.register_buffer("L", L)
         self.register_buffer("F2V", F2V)
@@ -173,13 +172,12 @@ class DownSamp(nn.Module):
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_chan, neck_chan, out_chan, level, coarsen, mesh_folder):
+    def __init__(self, in_chan, neck_chan, out_chan, level, coarsen):
         # make a call to the parent constructor
         super(ResBlock, self).__init__()
 
         # get the path to the mesh file
         lvl = level - 1 if coarsen else level
-        mesh_file = os.path.join(mesh_folder, "icosphere_{}.pkl".format(lvl))
 
         # initialise the instance variables
         self.coarsen = coarsen
@@ -190,7 +188,7 @@ class ResBlock(nn.Module):
         self.bn_1a = nn.BatchNorm1d(neck_chan)
 
         # MESHCONV -> BN
-        self.conv_2a = MeshConv(neck_chan, neck_chan, mesh_file=mesh_file, stride=1)
+        self.conv_2a = MeshConv(neck_chan, neck_chan, mesh_lvl=lvl, stride=1)
         self.bn_2a = nn.BatchNorm1d(neck_chan)
 
         # CONV 1x1 -> BN
