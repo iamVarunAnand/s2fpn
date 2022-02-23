@@ -1,2 +1,2 @@
 # import the necessary classes, methods, and variables
-from .models import *
+from .loader import S2D3DSegLoader

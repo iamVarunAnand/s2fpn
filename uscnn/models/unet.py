@@ -123,9 +123,9 @@ class SphericalUNet(nn.Module):
         return x
 
 
-if __name__ == "__main__":
-    from torchinfo import summary
+# if __name__ == "__main__":
+#     from torchinfo import summary
 
-    model = SphericalUNet(4, 15, max_level=5, fdim=32)
+#     model = SphericalUNet(4, 15, max_level=5, fdim=32)
 
-    summary(model, input_size=(1, 4, 10242))
+#     summary(model, input_size=(1, 4, 10242))
