@@ -107,9 +107,6 @@ def train(args, model, train_loader, optimizer, epoch, device, logger, keep_id=N
 
         loss = F.cross_entropy(output, target.long(), weight=w)
 
-        print(loss)
-        exit(-1)
-
         loss.backward()
         optimizer.step()
 
