@@ -106,6 +106,10 @@ def train(args, model, train_loader, optimizer, epoch, device, logger, keep_id=N
             target = target[:, keep_id]
 
         loss = F.cross_entropy(output, target.long(), weight=w)
+
+        print(loss)
+        exit(-1)
+
         loss.backward()
         optimizer.step()
 
@@ -240,11 +244,11 @@ def main():
 
     torch.manual_seed(args.seed)
 
-    # Initialise Weights and Biases Run #
-    config = {"Run": args.Name, "Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
-    wandb.init(project='SCNN', entity='tomvarun', config=config)
-    wandb.run.name = 'ugscnn fpn'
-    wandb.run.save()
+    # # Initialise Weights and Biases Run #
+    # config = {"Run": args.Name, "Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
+    # wandb.init(project='SCNN', entity='tomvarun', config=config)
+    # wandb.run.name = 'ugscnn fpn'
+    # wandb.run.save()
 
     trainset = S2D3DSegLoader(args.data_folder, "train", fold=args.fold, sp_level=args.max_level, in_ch=len(args.in_ch))
     valset = S2D3DSegLoader(args.data_folder, "test", fold=args.fold, sp_level=args.max_level, in_ch=len(args.in_ch))
@@ -305,36 +309,36 @@ def main():
         loss = train(args, model, train_loader, optimizer, epoch, device, logger, keep_id)
         miou, accs, ious, val_loss = test(args, model, val_loader, epoch, device, logger, keep_id)
 
-        wandb.log({"Train Loss": loss,
-                   "Val Loss": val_loss,
-                   f"{class_names[1]} Acc": accs[0],
-                   f"{class_names[2]} Acc": accs[1],
-                   f"{class_names[3]} Acc": accs[2],
-                   f"{class_names[4]} Acc": accs[3],
-                   f"{class_names[5]} Acc": accs[4],
-                   f"{class_names[6]} Acc": accs[5],
-                   f"{class_names[7]} Acc": accs[6],
-                   f"{class_names[8]} Acc": accs[7],
-                   f"{class_names[9]} Acc": accs[8],
-                   f"{class_names[10]} Acc": accs[9],
-                   f"{class_names[11]} Acc": accs[10],
-                   f"{class_names[12]} Acc": accs[11],
-                   f"{class_names[13]} Acc": accs[12],
-                   "Mean Acc": np.mean(accs),
-                   f"{class_names[1]} IoU": ious[0],
-                   f"{class_names[2]} IoU": ious[1],
-                   f"{class_names[3]} IoU": ious[2],
-                   f"{class_names[4]} IoU": ious[3],
-                   f"{class_names[5]} IoU": ious[4],
-                   f"{class_names[6]} IoU": ious[5],
-                   f"{class_names[7]} IoU": ious[6],
-                   f"{class_names[8]} IoU": ious[7],
-                   f"{class_names[9]} IoU": ious[8],
-                   f"{class_names[10]} IoU": ious[9],
-                   f"{class_names[11]} IoU": ious[10],
-                   f"{class_names[12]} IoU": ious[11],
-                   f"{class_names[13]} IoU": ious[12],
-                   "Mean IoU": np.mean(ious)})
+        # wandb.log({"Train Loss": loss,
+        #            "Val Loss": val_loss,
+        #            f"{class_names[1]} Acc": accs[0],
+        #            f"{class_names[2]} Acc": accs[1],
+        #            f"{class_names[3]} Acc": accs[2],
+        #            f"{class_names[4]} Acc": accs[3],
+        #            f"{class_names[5]} Acc": accs[4],
+        #            f"{class_names[6]} Acc": accs[5],
+        #            f"{class_names[7]} Acc": accs[6],
+        #            f"{class_names[8]} Acc": accs[7],
+        #            f"{class_names[9]} Acc": accs[8],
+        #            f"{class_names[10]} Acc": accs[9],
+        #            f"{class_names[11]} Acc": accs[10],
+        #            f"{class_names[12]} Acc": accs[11],
+        #            f"{class_names[13]} Acc": accs[12],
+        #            "Mean Acc": np.mean(accs),
+        #            f"{class_names[1]} IoU": ious[0],
+        #            f"{class_names[2]} IoU": ious[1],
+        #            f"{class_names[3]} IoU": ious[2],
+        #            f"{class_names[4]} IoU": ious[3],
+        #            f"{class_names[5]} IoU": ious[4],
+        #            f"{class_names[6]} IoU": ious[5],
+        #            f"{class_names[7]} IoU": ious[6],
+        #            f"{class_names[8]} IoU": ious[7],
+        #            f"{class_names[9]} IoU": ious[8],
+        #            f"{class_names[10]} IoU": ious[9],
+        #            f"{class_names[11]} IoU": ious[10],
+        #            f"{class_names[12]} IoU": ious[11],
+        #            f"{class_names[13]} IoU": ious[12],
+        #            "Mean IoU": np.mean(ious)})
 
         if args.train_stats_freq > 0 and (epoch % args.train_stats_freq == 0):
             _ = test(args, model, train_loader, epoch, device, logger, keep_id)
