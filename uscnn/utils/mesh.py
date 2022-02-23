@@ -296,3 +296,7 @@ def export_spheres(int_list, dest_folder):
     for i in int_list:
         s = Icosphere(i)
         s.export_mesh_info(fname.format(i))
+
+if __name__ == "__main__":
+    int_list = [i for i in range(8)]
+    export_spheres(int_list, "uscnn/meshes")

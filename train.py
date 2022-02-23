@@ -123,7 +123,7 @@ def train(args, model, train_loader, optimizer, epoch, device, logger, keep_id=N
     return tot_loss
 
 
-def test(args, model, test_loader, epoch, logger, device, keep_id=None):
+def test(args, model, test_loader, epoch, device, logger, keep_id=None):
     w = torch.tensor(label_weight).to(device)
     model.eval()
 
@@ -222,11 +222,11 @@ def main():
 
     # logger and snapshot current code
     if not os.path.exists(args.log_dir):
-        os.mkdir(args.log_dir)
+        os.makedirs(args.log_dir)
 
-    shutil.copy2(__file__, os.path.join(args.log_dir, "script.py"))
-    shutil.copy2("model.py", os.path.join(args.log_dir, "model.py"))
-    shutil.copy2("run.sh", os.path.join(args.log_dir, "run.sh"))
+    # shutil.copy2(__file__, os.path.join(args.log_dir, "script.py"))
+    # shutil.copy2("model.py", os.path.join(args.log_dir, "model.py"))
+    # shutil.copy2("run.sh", os.path.join(args.log_dir, "run.sh"))
 
     logger = logging.getLogger("train")
     logger.setLevel(logging.DEBUG)
