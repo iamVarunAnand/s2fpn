@@ -49,13 +49,13 @@ class Down(nn.Module):
         return self.conv(x)
 
 
-class MeshConvTransposeBNReLU(nn.Module):
+class MeshConvTransposeGNReLU(nn.Module):
     def __init__(self, in_channels, out_channels, mesh_lvl):
-        super(MeshConvTransposeBNReLU, self).__init__()
+        super(MeshConvTransposeGNReLU, self).__init__()
 
         self.block = nn.Sequential(
             MeshConvTranspose(in_channels, out_channels, mesh_lvl, stride=2),
-            nn.BatchNorm1d(out_channels),
+            nn.GroupNorm(32, out_channels),
             nn.ReLU(inplace=True),
         )
 
@@ -106,12 +106,12 @@ class SphericalFPNet(nn.Module):
             self.up.append(Up(ch_in, ch_out, min_level + i + 1))
 
         # upsampling convolutions for detection stage
-        self.conv_1a = MeshConvTransposeBNReLU(fpn_dim, 128, 1)
-        self.conv_1b = MeshConvTransposeBNReLU(128, 128, 2)
-        self.conv_1c = MeshConvTransposeBNReLU(128, 128, 3)
-        self.conv_2a = MeshConvTransposeBNReLU(fpn_dim, 128, 2)
-        self.conv_2b = MeshConvTransposeBNReLU(128, 128, 3)
-        self.conv_3a = MeshConvTransposeBNReLU(fpn_dim, 128, 3)
+        self.conv_1a = MeshConvTransposeGNReLU(fpn_dim, 128, 1)
+        self.conv_1b = MeshConvTransposeGNReLU(128, 128, 2)
+        self.conv_1c = MeshConvTransposeGNReLU(128, 128, 3)
+        self.conv_2a = MeshConvTransposeGNReLU(fpn_dim, 128, 2)
+        self.conv_2b = MeshConvTransposeGNReLU(128, 128, 3)
+        self.conv_3a = MeshConvTransposeGNReLU(fpn_dim, 128, 3)
         self.conv_4a = nn.Conv1d(fpn_dim, 128, kernel_size=1, stride=1)
 
         # initialise the modules
