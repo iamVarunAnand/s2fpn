@@ -125,7 +125,7 @@ class SphericalFPNet(nn.Module):
         # loop through and pass the input through the encoder
         for i in range(self.levels):
             x_d.append(self.down[i](x_d[-1]))
-        
+
         # initial cross connection at lvl-0
         x_u = [self.cross_conv(x_d[-1])]
 
@@ -139,7 +139,7 @@ class SphericalFPNet(nn.Module):
         x2 = self.conv_2b(self.conv_2a(x_u[1]))
         x3 = self.conv_3a(x_u[2])
         x4 = self.conv_4a(x_u[3])
-        
+
         # add all the pyramid levels together
         x = x1 + x2 + x3 + x4
 
@@ -151,14 +151,18 @@ class SphericalFPNet(nn.Module):
         return x
 
 
-# if __name__ == "__main__":
-#     from torch.profiler import profile, ProfilerActivity
-#     import torch
+if __name__ == "__main__":
+    # from torch.profiler import profile, ProfilerActivity
+    from torch.utils.tensorboard import SummaryWriter
+    import torch
 
-#     model = SphericalFPNet(4, 15, fdim=32).to(torch.device("cpu"))
-#     inputs = torch.randn(1, 4, 10242).to(torch.device("cpu"))
+    model = SphericalFPNet(4, 15, fdim=32).to(torch.device("cpu"))
+    inputs = torch.randn(1, 4, 10242).to(torch.device("cpu"))
 
-#     with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
-#         model(inputs)
-    
-#     print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
+    writer = SummaryWriter('logs')
+    writer.add_graph(model, inputs)
+
+    # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
+    #     model(inputs)
+
+    # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))

@@ -1,5 +1,3 @@
-import sys
-
 # import the necessary packages
 from torch.utils.data import DataLoader
 from uscnn.models import SphericalFPNet
