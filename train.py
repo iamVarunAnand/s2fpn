@@ -15,6 +15,9 @@ import torch
 import wandb
 import os
 
+# # stop pytorch from caching GPU memory
+# os.environ["PYTORCH_NO_CUDA_MEMORY_CACHING"] = "1"
+
 # initialise metadata
 num_classes = 15
 classes = [i for i in range(num_classes)]
