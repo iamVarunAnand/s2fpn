@@ -170,6 +170,23 @@ class DownSamp(nn.Module):
         # downsample and return
         return x[..., :self.nv_prev]
 
+class UpSamp(nn.Module):
+    def __init__(self, nv_prev, nv):
+        # make a call to the parent constructor
+        super(UpSamp, self).__init__()
+
+        # initialise the instance variables
+        self.nv_prev = nv_prev
+        self.nv = nv
+        self.nv_pad = self.nv - self.nv_prev
+
+    def forward(self, x):
+        # downsample and return
+        ones_pad = torch.ones(*x.size()[:2], self.nv_pad).to(x.device)
+        x = torch.cat((input, ones_pad), dim=-1)
+
+        return x
+
 
 class ResBlock(nn.Module):
     def __init__(self, in_chan, neck_chan, out_chan, level, coarsen):
