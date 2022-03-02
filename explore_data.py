@@ -1,9 +1,5 @@
 # import the necessary packages
 from uscnn.utils import Icosphere
-<< << << < HEAD
-== == == =
-import uscnn.layers as layers
->>>>>> > 3fc63c521be66dbdc79bb99db4a2ffe07cda205d
 from tqdm import tqdm
 import meshplot as mp
 import numpy as np
