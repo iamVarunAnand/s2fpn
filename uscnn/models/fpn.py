@@ -151,18 +151,18 @@ class SphericalFPNet(nn.Module):
         return x
 
 
-if __name__ == "__main__":
-    # from torch.profiler import profile, ProfilerActivity
-    from torch.utils.tensorboard import SummaryWriter
-    import torch
+# if __name__ == "__main__":
+#     # from torch.profiler import profile, ProfilerActivity
+#     from torch.utils.tensorboard import SummaryWriter
+#     import torch
 
-    model = SphericalFPNet(4, 15, fdim=32).to(torch.device("cpu"))
-    inputs = torch.randn(1, 4, 10242).to(torch.device("cpu"))
+#     model = SphericalFPNet(4, 15, fdim=32).to(torch.device("cpu"))
+#     inputs = torch.randn(1, 4, 10242).to(torch.device("cpu"))
 
-    writer = SummaryWriter('logs')
-    writer.add_graph(model, inputs)
+#     writer = SummaryWriter('logs')
+#     writer.add_graph(model, inputs)
 
-    # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
-    #     model(inputs)
+#     # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
+#     #     model(inputs)
 
-    # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
+#     # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
