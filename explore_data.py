@@ -1,5 +1,9 @@
 # import the necessary packages
 from uscnn.utils import Icosphere
+<< << << < HEAD
+== == == =
+import uscnn.layers as layers
+>>>>>> > 3fc63c521be66dbdc79bb99db4a2ffe07cda205d
 from tqdm import tqdm
 import meshplot as mp
 import numpy as np
@@ -25,28 +29,11 @@ def normalize(vectors, radius=1):
 
 if __name__ == "__main__":
     # grab the path to the dataset files
-    paths = list(glob.glob("/home/varun/datasets/2d3ds_sphere/area_1/*.npz"))
+    paths = list(glob.glob(
+        r"C:\Users\spike\Documents\Python Scripts\MLP_CW4\ugscnn-master\ugscnn-master\new\ugscnn\experiments\exp3_2d3ds\2d3ds_sphere\area_1\*.npz"))
 
     # sort the paths according to the split
     paths = sorted(paths, key=lambda x: int(x.split(os.path.sep)[-1].split(".")[0].split("_")[-1]))
-
-    # initialise an icosphere
-    ico = Icosphere(level=7)
-
-    # pick 5 random images to visualise
-    # np.random.shuffle(paths)
-    # paths = paths[:5]
-    paths = [paths[0]]
-
-    # loop through the paths and visualise the images
-    for path in tqdm(paths, total=len(paths), desc="[INFO] plotting the images: "):
-        # read in the data and extract the images and labels
-        arr = np.load(path)
-        imgs, lbls = arr["data"], arr["labels"]
-
-        # plot the image and save it to disk
-        output_img_path = f"figs/area_1/{path.split(os.path.sep)[-1].split('.')[0]}_lvl7.html"
-        mp.plot(ico.vertices, ico.faces, c=imgs[:ico.vertices.shape[0], :3], filename=output_img_path)
 
     # constants
     level = 6

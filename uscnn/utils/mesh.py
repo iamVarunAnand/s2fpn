@@ -67,6 +67,7 @@ class Icosphere(object):
         unique, inverse = unique_rows(mid)
 
         mid = mid[unique]
+
         src_idx = src_idx[unique]
         mid_idx = inverse[mid_idx] + len(vertices)
         # the new faces, with correct winding
