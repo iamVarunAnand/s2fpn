@@ -1,6 +1,7 @@
 # import the necessary packages
 from torch.utils.data import DataLoader
 from uscnn.models import SphericalFPNet
+from uscnn.models import SphericalUNet
 from collections import OrderedDict
 from data import S2D3DSegLoader
 from tabulate import tabulate
@@ -203,6 +204,7 @@ def main():
                         help='how many batches to wait before logging training status')
     parser.add_argument('--max_level', type=int, default=7, help='max mesh level')
     parser.add_argument('--min_level', type=int, default=0, help='min mesh level')
+    parser.add_argument('--model', type=str, default="FPN")
     parser.add_argument('--feat', type=int, default=4, help='filter dimensions')
     parser.add_argument('--log_dir', type=str, default="log",
                         help='log directory for run')
@@ -247,7 +249,7 @@ def main():
     # Initialise Weights and Biases Run #
     config = {"Run": args.Name, "Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
     wandb.init(project='SCNN', entity='tomvarun', config=config)
-    wandb.run.name = 'ugscnn fpn'
+    wandb.run.name = 'USCNN ' + args.model + " " + f"Fold {args.fold}"
     wandb.run.save()
 
     trainset = S2D3DSegLoader(args.data_folder, "train", fold=args.fold, sp_level=args.max_level, in_ch=len(args.in_ch))
@@ -255,8 +257,16 @@ def main():
     train_loader = DataLoader(trainset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(valset, batch_size=args.batch_size, shuffle=True, drop_last=False)
 
-    model = SphericalFPNet(in_ch=len(args.in_ch), out_ch=len(
-        classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
+    #Load Model
+    if args.model == "FPN":
+        model = SphericalFPNet(in_ch=len(args.in_ch), out_ch=len(
+            classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
+    elif args.model == "UNET":
+        model = SphericalUNet(in_ch=len(args.in_ch), out_ch=len(
+            classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
+    else:
+        print("Model Not Recognised")
+
     model = nn.DataParallel(model)
     model.to(device)
 

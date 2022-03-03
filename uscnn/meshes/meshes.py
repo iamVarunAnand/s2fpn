@@ -18,6 +18,8 @@ def load_mesh(path):
     F2V = data["F2V"]
     nv_prev = data["nv_prev"]
     nv = data["V"].shape[0]
+    F = data["F"]
+
 
     # return the matrices as a dictionary
     return {
@@ -27,7 +29,8 @@ def load_mesh(path):
         "EW": EW,
         "F2V": F2V,
         "nv_prev": nv_prev,
-        "nv": nv
+        "nv": nv,
+        "F": F
     }
 
 

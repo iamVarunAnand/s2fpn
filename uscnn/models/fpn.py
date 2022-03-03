@@ -1,5 +1,5 @@
 # import the necessary packages
-from ..layers import MeshConv, MeshConvTranspose, ResBlock
+from ..layers import MeshConv, MeshConvTranspose, ResBlock, UpSamp
 from torch import nn
 
 
@@ -13,10 +13,13 @@ class Up(nn.Module):
         super(Up, self).__init__()
 
         # MESHCONV.T
-        self.up = MeshConvTranspose(out_ch, out_ch, level, stride=2)
+        self.up = UpSamp(level)
 
         # cross connection
         self.conv = nn.Conv1d(in_ch, out_ch, kernel_size=1, stride=1)
+
+        #final meshconv
+        self.outconv = MeshConv(out_ch, out_ch, level)
 
     def forward(self, x1, x2):
         # upsample the previous pyramid layer
@@ -29,7 +32,7 @@ class Up(nn.Module):
         x = x1 + x2
 
         # return the computation of the layer
-        return x
+        return self.outconv(x)
 
 
 class Down(nn.Module):

@@ -170,20 +170,32 @@ class DownSamp(nn.Module):
         # downsample and return
         return x[..., :self.nv_prev]
 
+
 class UpSamp(nn.Module):
-    def __init__(self, nv_prev, nv):
+    def __init__(self, mesh_lvl):
         # make a call to the parent constructor
         super(UpSamp, self).__init__()
 
         # initialise the instance variables
-        self.nv_prev = nv_prev
-        self.nv = nv
+        ico = MESHES[mesh_lvl - 1]
+        ico_up = MESHES[mesh_lvl]
+        self.ico = ico
+        self.ico_up = ico_up
+        self.nv = ico_up["nv"]
+        self.nv_prev = ico["nv"]
         self.nv_pad = self.nv - self.nv_prev
 
     def forward(self, x):
-        # downsample and return
+        # upsample and return
+        # input has size batch_size x 256 x nv_prev
+
         ones_pad = torch.ones(*x.size()[:2], self.nv_pad).to(x.device)
-        x = torch.cat((input, ones_pad), dim=-1)
+        x = torch.cat((x, ones_pad), dim=-1)
+
+        for i in range(0, self.ico["F"].shape[0]):
+            x[:, :, (self.ico_up["F"])[4 * i + 3, 0]] = (x[:, :, (self.ico["F"])[i, 0]] + x[:, :, (self.ico["F"])[i, 1]]) / 2
+            x[:, :, (self.ico_up["F"])[4 * i + 3, 1]] = (x[:, :, (self.ico["F"])[i, 1]] + x[:, :, (self.ico["F"])[i, 2]]) / 2
+            x[:, :, (self.ico_up["F"])[4 * i + 3, 2]] = (x[:, :, (self.ico["F"])[i, 2]] + x[:, :, (self.ico["F"])[i, 1]]) / 2
 
         return x
 
@@ -257,3 +269,5 @@ class ResBlock(nn.Module):
 
         # return the computation of the ResBlock
         return out
+
+
