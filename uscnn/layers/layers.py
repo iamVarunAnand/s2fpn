@@ -192,10 +192,9 @@ class UpSamp(nn.Module):
         ones_pad = torch.ones(*x.size()[:2], self.nv_pad).to(x.device)
         x = torch.cat((x, ones_pad), dim=-1)
 
-        for i in range(0, self.ico["F"].shape[0]):
-            x[:, :, (self.ico_up["F"])[4 * i + 3, 0]] = (x[:, :, (self.ico["F"])[i, 0]] + x[:, :, (self.ico["F"])[i, 1]]) / 2
-            x[:, :, (self.ico_up["F"])[4 * i + 3, 1]] = (x[:, :, (self.ico["F"])[i, 1]] + x[:, :, (self.ico["F"])[i, 2]]) / 2
-            x[:, :, (self.ico_up["F"])[4 * i + 3, 2]] = (x[:, :, (self.ico["F"])[i, 2]] + x[:, :, (self.ico["F"])[i, 1]]) / 2
+        x[:, :, (self.ico_up["F"])[3:][::4, 0]] = (x[:, :, (self.ico["F"])[:, 0]] + x[:, :, (self.ico["F"])[:, 1]]) / 2
+        x[:, :, (self.ico_up["F"])[3:][::4, 1]] = (x[:, :, (self.ico["F"])[:, 1]] + x[:, :, (self.ico["F"])[:, 2]]) / 2
+        x[:, :, (self.ico_up["F"])[3:][::4, 2]] = (x[:, :, (self.ico["F"])[:, 2]] + x[:, :, (self.ico["F"])[:, 1]]) / 2
 
         return x
 

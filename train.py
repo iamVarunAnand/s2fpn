@@ -17,7 +17,24 @@ import wandb
 import os
 
 # # stop pytorch from caching GPU memory
-# os.environ["PYTORCH_NO_CUDA_MEMORY_CACHING"] = "1"
+#os.environ["PYTORCH_NO_CUDA_MEMORY_CACHING"] = "1"
+
+#SEED EVERYTHING
+def seed_everything(seed: int):
+    import random, os
+    import numpy as np
+    import torch
+
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+
+
+seed_everything(42)
 
 # initialise metadata
 num_classes = 15
@@ -122,6 +139,7 @@ def train(args, model, train_loader, optimizer, epoch, device, logger, keep_id=N
             logger.info('Train Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
+
 
     tot_loss /= count
 
@@ -302,7 +320,7 @@ def main():
     logger.info("{} parameters in total".format(sum(x.numel() for x in model.parameters())))
 
     if args.optim == "sgd":
-        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
     else:
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
 

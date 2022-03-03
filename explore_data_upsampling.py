@@ -49,10 +49,9 @@ if __name__ == "__main__":
     img = np.concatenate((img, zeros_pad))
 
     #bilinear interpolation upsampling
-    for i in tqdm(range(0, ico.faces.shape[0])):
-        img[ico_up.faces[4 * i + 3, 0]] = (img[ico.faces[i, 0]] + img[ico.faces[i, 1]]) / 2
-        img[ico_up.faces[4 * i + 3, 1]] = (img[ico.faces[i, 1]] + img[ico.faces[i, 2]]) / 2
-        img[ico_up.faces[4 * i + 3, 2]] = (img[ico.faces[i, 2]] + img[ico.faces[i, 1]]) / 2
+    img[ico_up.faces[3:][::4, 0]] = (img[ico.faces[:, 0]] + img[ico.faces[:, 1]]) / 2
+    img[ico_up.faces[3:][::4, 1]] = (img[ico.faces[:, 1]] + img[ico.faces[:, 2]]) / 2
+    img[ico_up.faces[3:][::4, 2]] = (img[ico.faces[:, 2]] + img[ico.faces[:, 1]]) / 2
 
     # plot the image and save it to disk
     output_img_path = f"figs/area_1/{paths[0].split(os.path.sep)[-1].split('.')[0]}_upsample_test.html"
