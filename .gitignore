@@ -148,6 +148,7 @@ cython_debug/
 *.pkl
 
 # log files
+*.idea
 logs/*
 wandb
 

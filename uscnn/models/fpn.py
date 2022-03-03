@@ -18,8 +18,8 @@ class Up(nn.Module):
         # cross connection
         self.conv = nn.Conv1d(in_ch, out_ch, kernel_size=1, stride=1)
 
-        #final meshconv
-        self.outconv = MeshConv(out_ch, out_ch, level)
+        # final meshconv
+        self.out_conv = MeshConv(out_ch, out_ch, level)
 
     def forward(self, x1, x2):
         # upsample the previous pyramid layer
@@ -32,7 +32,7 @@ class Up(nn.Module):
         x = x1 + x2
 
         # return the computation of the layer
-        return self.outconv(x)
+        return self.out_conv(x)
 
 
 class Down(nn.Module):
@@ -52,14 +52,15 @@ class Down(nn.Module):
         return self.conv(x)
 
 
-class MeshConvTransposeGNReLU(nn.Module):
+class CrossUpSamp(nn.Module):
     def __init__(self, in_channels, out_channels, mesh_lvl):
-        super(MeshConvTransposeGNReLU, self).__init__()
+        super(CrossUpSamp, self).__init__()
 
         self.block = nn.Sequential(
-            MeshConvTranspose(in_channels, out_channels, mesh_lvl, stride=2),
+            MeshConv(in_channels, out_channels, mesh_lvl - 1, stride=1),
             nn.GroupNorm(32, out_channels),
             nn.ReLU(inplace=True),
+            UpSamp(mesh_lvl)
         )
 
     def forward(self, x):
@@ -80,10 +81,13 @@ class SphericalFPNet(nn.Module):
         # initialise lists to store the encoder and decoder stages
         self.down, self.up = [], []
 
-        # initial and final MESHCONV
+        # initial conv
         self.in_conv = MeshConv(in_ch, fdim, max_level, stride=1)
-        self.out_conv_a = MeshConvTranspose(128, 128, max_level - 1, stride=2)
-        self.out_conv_b = MeshConvTranspose(128, out_ch, max_level, stride=2)
+
+        # final conv + upsample
+        self.out_conv = nn.Conv1d(128, out_ch, kernel_size=1, stride=1)
+        self.out_up_a = UpSamp(max_level - 1)
+        self.out_up_b = UpSamp(max_level)
 
         # backbone
         for i in range(self.levels):
@@ -106,15 +110,15 @@ class SphericalFPNet(nn.Module):
             lvl = min_level + i + 1
 
             # add an upsample block
-            self.up.append(Up(ch_in, ch_out, min_level + i + 1))
+            self.up.append(Up(ch_in, ch_out, lvl))
 
         # upsampling convolutions for detection stage
-        self.conv_1a = MeshConvTransposeGNReLU(fpn_dim, 128, 1)
-        self.conv_1b = MeshConvTransposeGNReLU(128, 128, 2)
-        self.conv_1c = MeshConvTransposeGNReLU(128, 128, 3)
-        self.conv_2a = MeshConvTransposeGNReLU(fpn_dim, 128, 2)
-        self.conv_2b = MeshConvTransposeGNReLU(128, 128, 3)
-        self.conv_3a = MeshConvTransposeGNReLU(fpn_dim, 128, 3)
+        self.conv_1a = CrossUpSamp(fpn_dim, 128, 1)
+        self.conv_1b = CrossUpSamp(128, 128, 2)
+        self.conv_1c = CrossUpSamp(128, 128, 3)
+        self.conv_2a = CrossUpSamp(fpn_dim, 128, 2)
+        self.conv_2b = CrossUpSamp(128, 128, 3)
+        self.conv_3a = CrossUpSamp(fpn_dim, 128, 3)
         self.conv_4a = nn.Conv1d(fpn_dim, 128, kernel_size=1, stride=1)
 
         # initialise the modules
@@ -146,26 +150,28 @@ class SphericalFPNet(nn.Module):
         # add all the pyramid levels together
         x = x1 + x2 + x3 + x4
 
-        # 4x upsample for final prediction
-        x = self.out_conv_a(x)
-        x = self.out_conv_b(x)
+        # conv + 4x upsample for final prediction
+        x = self.out_conv(x)
+        x = self.out_up_b(self.out_up_a(x))
 
         # return the output of the model
         return x
 
 
-# if __name__ == "__main__":
-#     # from torch.profiler import profile, ProfilerActivity
-#     from torch.utils.tensorboard import SummaryWriter
-#     import torch
+if __name__ == "__main__":
+    # from torch.profiler import profile, ProfilerActivity
+    from torchinfo import summary
+    import torch
 
-#     model = SphericalFPNet(4, 15, fdim=32).to(torch.device("cpu"))
-#     inputs = torch.randn(1, 4, 10242).to(torch.device("cpu"))
+    model = SphericalFPNet(4, 15, fdim=32).to(torch.device("cpu"))
+    inputs = torch.randn(1, 4, 10242).to(torch.device("cpu"))
 
-#     writer = SummaryWriter('logs')
-#     writer.add_graph(model, inputs)
+    summary(model, input_size=(1, 4, 10242))
 
-#     # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
-#     #     model(inputs)
+    # writer = SummaryWriter('logs')
+    # writer.add_graph(model, inputs)
 
-#     # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
+    # # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
+    # #     model(inputs)
+
+    # # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
