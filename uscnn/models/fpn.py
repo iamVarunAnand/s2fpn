@@ -1,5 +1,5 @@
 # import the necessary packages
-from ..layers import MeshConv, MeshConvTranspose, ResBlock, UpSamp
+from ..layers import MeshConv, ResBlock, UpSamp
 from torch import nn
 
 

@@ -80,3 +80,23 @@ class S2D3DSegLoader(Dataset):
 
         # return the loaded data
         return imgs, lbls
+
+
+# if __name__ == "__main__":
+#     from tqdm import tqdm
+#     import json
+
+#     dl = S2D3DSegLoader("/home/varun/datasets/2d3ds_sphere", "train", 1, 5)
+
+#     labels = []
+#     for _, lbls in tqdm(dl, total=len(dl)):
+#         labels.append(lbls)
+
+#     labels = np.array(labels)
+#     u, c = np.unique(labels, return_counts=True)
+
+#     dist = {f"{x}": np.log(y / np.sum(c)) for x, y in zip(u, c)}
+
+#     f = open("bias_init.json", "w+")
+#     json.dump(dist, f, indent=4)
+#     f.close()

@@ -14,14 +14,16 @@ import logging
 import shutil
 import torch
 import wandb
+import json
 import os
 
 # # stop pytorch from caching GPU memory
-#os.environ["PYTORCH_NO_CUDA_MEMORY_CACHING"] = "1"
+# os.environ["PYTORCH_NO_CUDA_MEMORY_CACHING"] = "1"
 
-#SEED EVERYTHING
+
 def seed_everything(seed: int):
-    import random, os
+    import random
+    import os
     import numpy as np
     import torch
 
@@ -140,7 +142,6 @@ def train(args, model, train_loader, optimizer, epoch, device, logger, keep_id=N
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
 
-
     tot_loss /= count
 
     return tot_loss
@@ -184,8 +185,6 @@ def test(args, model, test_loader, epoch, device, logger, keep_id=None):
     ious = ints_ / unis_
     accs /= per_cls_counts
     test_loss /= count
-
-    print(per_cls_counts)
 
     logger.info('[Epoch {} {} stats]: MIoU: {:.4f}; Mean Accuracy: {:.4f}; Avg loss: {:.4f}'.format(
         epoch, test_loader.dataset.partition, np.mean(ious), np.mean(accs), test_loss))
@@ -262,8 +261,6 @@ def main():
 
     logger.info("%s", repr(args))
 
-    torch.manual_seed(args.seed)
-
     # Initialise Weights and Biases Run #
     config = {"Run": args.Name, "Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
     wandb.init(project='SCNN', entity='tomvarun', config=config)
@@ -275,7 +272,7 @@ def main():
     train_loader = DataLoader(trainset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(valset, batch_size=args.batch_size, shuffle=True, drop_last=False)
 
-    #Load Model
+    # Load Model
     if args.model == "FPN":
         model = SphericalFPNet(in_ch=len(args.in_ch), out_ch=len(
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
@@ -284,6 +281,10 @@ def main():
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
     else:
         print("Model Not Recognised")
+
+    # initialise bias of out conv
+    dist = json.load(open("data/bias_init.json", "r"))
+    model.out_conv.bias.data = torch.Tensor(list(dist.values()))
 
     model = nn.DataParallel(model)
     model.to(device)
