@@ -1,6 +1,6 @@
 # import the necessary packages
+from uscnn.models import SphericalFPNet, SphericalFPNetLarge
 from torch.utils.data import DataLoader
-from uscnn.models import SphericalFPNet
 from uscnn.models import SphericalUNet
 from collections import OrderedDict
 from data import S2D3DSegLoader

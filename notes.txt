@@ -100,3 +100,7 @@ Estimated Total Size (MB): 35.35
 
 
 UNet lvl-7 fdim-16: 20,667,949 parameters
+
+Changes:
+    - upsampling routine changed to do only padding with ones. (needs to be followed by mesh conv to learn values for upsampled vertices)
+    - changes to how final prediction is made. now changed to upsamp + upsamp + conv

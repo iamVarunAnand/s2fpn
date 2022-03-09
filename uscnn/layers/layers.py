@@ -199,6 +199,28 @@ class UpSamp(nn.Module):
         return x
 
 
+class UpSampPad(nn.Module):
+    def __init__(self, mesh_lvl):
+        # make a call to the parent constructor
+        super(UpSampPad, self).__init__()
+
+        # initialise the instance variables
+        ico_up = MESHES[mesh_lvl]
+        self.ico_up = ico_up
+        self.nv = ico_up["nv"]
+        self.nv_prev = ico_up["nv_prev"]
+        self.nv_pad = self.nv - self.nv_prev
+
+    def forward(self, x):
+        # upsample and return
+        # input has size batch_size x 256 x nv_prev
+
+        ones_pad = torch.ones(*x.size()[:2], self.nv_pad).to(x.device)
+        x = torch.cat((x, ones_pad), dim=-1)
+
+        return x
+
+
 class ResBlock(nn.Module):
     def __init__(self, in_chan, neck_chan, out_chan, level, coarsen):
         # make a call to the parent constructor
@@ -268,5 +290,3 @@ class ResBlock(nn.Module):
 
         # return the computation of the ResBlock
         return out
-
-
