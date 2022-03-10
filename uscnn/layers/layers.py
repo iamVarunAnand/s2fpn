@@ -206,6 +206,130 @@ class MeshConvTranspose(_MeshConv):
         # return the computed feature maps
         return out
 
+class MeshConvTransposeNearest(_MeshConv):
+    def __init__(self, in_channels, out_channels, mesh_lvl, stride=2, bias=True):
+        # assert for supported strides
+        assert(stride == 2)
+
+        # make a call to the parent class constructor
+        super(MeshConvTransposeNearest, self).__init__(in_channels, out_channels, mesh_lvl, stride, bias)
+
+        pkl = self.pkl
+        self.nv_prev = self.pkl["nv_prev"]
+        self.nv_pad = self.nv - self.nv_prev
+
+        L = sparse2tensor(pkl["L"].tocoo())  # laplacian matrix V->V
+        F2V = sparse2tensor(pkl["F2V"].tocoo())  # F->V, #V x #F
+
+        self.register_buffer("L", L)
+        self.register_buffer("F2V", F2V)
+
+        ico = MESHES[mesh_lvl - 1]
+        self.ico = ico
+        self.nv_prev = ico["nv"]
+        self.nv_pad = self.nv - self.nv_prev
+
+    def forward(self, input):
+        # pad input with zeros to match the next mesh resolution
+        ones_pad = torch.ones(*input.size()[:2], self.nv_pad).to(input.device)
+        input = torch.cat((input, ones_pad), dim=-1)
+
+        # nearest neighbour upsampling
+        input[:, :, (self.pkl["F"])[3:][::4, 0]] = input[:, :, (self.ico["F"])[:, 0]]
+        input[:, :, (self.pkl["F"])[3:][::4, 1]] = input[:, :, (self.ico["F"])[:, 1]]
+        input[:, :, (self.pkl["F"])[3:][::4, 2]] = input[:, :, (self.ico["F"])[:, 2]]
+
+        # gradient
+        grad_face = spmatmul(input, self.G)
+        grad_face = grad_face.view(*(input.size()[:2]), 3, -1).permute(0, 1, 3, 2)  # gradient, 3 component per face
+
+        # laplacian
+        laplacian = spmatmul(input, self.L)
+
+        # identity
+        identity = input
+
+        # face gradients along cardinal directions
+        grad_face_ew = torch.sum(torch.mul(grad_face, self.EW), keepdim=False, dim=-1)
+        grad_face_ns = torch.sum(torch.mul(grad_face, self.NS), keepdim=False, dim=-1)
+
+        # vertex gradients (weighted by face area)
+        grad_vert_ew = spmatmul(grad_face_ew, self.F2V)
+        grad_vert_ns = spmatmul(grad_face_ns, self.F2V)
+
+        # features
+        feat = [identity, laplacian, grad_vert_ew, grad_vert_ns]
+
+        # dot product to compute the PDO convolution
+        out = torch.stack(feat, dim=-1)
+        out = torch.sum(torch.sum(torch.mul(out.unsqueeze(1), self.coeffs.unsqueeze(2)), dim=2), dim=-1)
+        out += self.bias.unsqueeze(-1)
+
+        # return the computed feature maps
+        return out
+
+class MeshConvTransposeBilinear(_MeshConv):
+    def __init__(self, in_channels, out_channels, mesh_lvl, stride=2, bias=True):
+        # assert for supported strides
+        assert(stride == 2)
+
+        # make a call to the parent class constructor
+        super(MeshConvTransposeBilinear, self).__init__(in_channels, out_channels, mesh_lvl, stride, bias)
+
+        pkl = self.pkl
+        self.nv_prev = self.pkl["nv_prev"]
+        self.nv_pad = self.nv - self.nv_prev
+
+        L = sparse2tensor(pkl["L"].tocoo())  # laplacian matrix V->V
+        F2V = sparse2tensor(pkl["F2V"].tocoo())  # F->V, #V x #F
+
+        self.register_buffer("L", L)
+        self.register_buffer("F2V", F2V)
+
+        ico = MESHES[mesh_lvl - 1]
+        self.ico = ico
+        self.nv_prev = ico["nv"]
+        self.nv_pad = self.nv - self.nv_prev
+
+    def forward(self, input):
+        # pad input with zeros to match the next mesh resolution
+        ones_pad = torch.ones(*input.size()[:2], self.nv_pad).to(input.device)
+        input = torch.cat((input, ones_pad), dim=-1)
+
+        # bilinear upsampling
+        input[:, :, (self.pkl["F"])[3:][::4, 0]] = (input[:, :, (self.ico["F"])[:, 0]] + input[:, :, (self.ico["F"])[:, 1]]) / 2
+        input[:, :, (self.pkl["F"])[3:][::4, 1]] = (input[:, :, (self.ico["F"])[:, 1]] + input[:, :, (self.ico["F"])[:, 2]]) / 2
+        input[:, :, (self.pkl["F"])[3:][::4, 2]] = (input[:, :, (self.ico["F"])[:, 2]] + input[:, :, (self.ico["F"])[:, 1]]) / 2
+
+        # gradient
+        grad_face = spmatmul(input, self.G)
+        grad_face = grad_face.view(*(input.size()[:2]), 3, -1).permute(0, 1, 3, 2)  # gradient, 3 component per face
+
+        # laplacian
+        laplacian = spmatmul(input, self.L)
+
+        # identity
+        identity = input
+
+        # face gradients along cardinal directions
+        grad_face_ew = torch.sum(torch.mul(grad_face, self.EW), keepdim=False, dim=-1)
+        grad_face_ns = torch.sum(torch.mul(grad_face, self.NS), keepdim=False, dim=-1)
+
+        # vertex gradients (weighted by face area)
+        grad_vert_ew = spmatmul(grad_face_ew, self.F2V)
+        grad_vert_ns = spmatmul(grad_face_ns, self.F2V)
+
+        # features
+        feat = [identity, laplacian, grad_vert_ew, grad_vert_ns]
+
+        # dot product to compute the PDO convolution
+        out = torch.stack(feat, dim=-1)
+        out = torch.sum(torch.sum(torch.mul(out.unsqueeze(1), self.coeffs.unsqueeze(2)), dim=2), dim=-1)
+        out += self.bias.unsqueeze(-1)
+
+        # return the computed feature maps
+        return out
+
 
 class DownSamp(nn.Module):
     def __init__(self, nv_prev):

@@ -1,2 +1,2 @@
 # import the necessary classes and functions
-from .layers import MeshConv, MeshConvTranspose, DownSamp, ResBlock, UpSamp, UpSampPad, UpSampNearest, MeshConvTest
+from .layers import MeshConv, MeshConvTranspose, DownSamp, ResBlock, UpSamp, UpSampPad, UpSampNearest, MeshConvTest, MeshConvTransposeBilinear, MeshConvTransposeNearest

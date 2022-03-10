@@ -221,7 +221,7 @@ def main():
                         help='how many batches to wait before logging training status')
     parser.add_argument('--max_level', type=int, default=7, help='max mesh level')
     parser.add_argument('--min_level', type=int, default=0, help='min mesh level')
-    parser.add_argument('--model', type=str, default="FPN")
+    parser.add_argument('--model', type=str, choices=["fpn", "unet"], default="fpn")
     parser.add_argument('--feat', type=int, default=4, help='filter dimensions')
     parser.add_argument('--log_dir', type=str, default="log",
                         help='log directory for run')
@@ -273,10 +273,10 @@ def main():
     val_loader = DataLoader(valset, batch_size=args.batch_size, shuffle=True, drop_last=False)
 
     # Load Model
-    if args.model == "FPN":
+    if args.model == "fpn":
         model = SphericalFPNetLarge(in_ch=len(args.in_ch), out_ch=len(
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
-    elif args.model == "UNET":
+    elif args.model == "unet":
         model = SphericalUNet(in_ch=len(args.in_ch), out_ch=len(
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
     else:
