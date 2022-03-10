@@ -20,7 +20,6 @@ def load_mesh(path):
     nv = data["V"].shape[0]
     F = data["F"]
 
-
     # return the matrices as a dictionary
     return {
         "G": G,
@@ -42,6 +41,6 @@ MESHES = {
     3: load_mesh("uscnn/meshes/icosphere_3.pkl"),
     4: load_mesh("uscnn/meshes/icosphere_4.pkl"),
     5: load_mesh("uscnn/meshes/icosphere_5.pkl"),
-    # 6: pickle.load(open("uscnn/meshes/icosphere_6.pkl", "rb")),
-    # 7: pickle.load(open("uscnn/meshes/icosphere_7.pkl", "rb"))
+    # 6: load_mesh("uscnn/meshes/icosphere_6.pkl"),
+    # 7: load_mesh("uscnn/meshes/icosphere_7.pkl"),
 }
