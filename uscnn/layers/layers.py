@@ -199,6 +199,34 @@ class UpSamp(nn.Module):
         return x
 
 
+class UpSampNearest(nn.Module):
+    def __init__(self, mesh_lvl):
+        # make a call to the parent constructor
+        super(UpSamp, self).__init__()
+
+        # initialise the instance variables
+        ico = MESHES[mesh_lvl - 1]
+        ico_up = MESHES[mesh_lvl]
+        self.ico = ico
+        self.ico_up = ico_up
+        self.nv = ico_up["nv"]
+        self.nv_prev = ico["nv"]
+        self.nv_pad = self.nv - self.nv_prev
+
+    def forward(self, x):
+        # upsample and return
+        # input has size batch_size x 256 x nv_prev
+
+        ones_pad = torch.ones(*x.size()[:2], self.nv_pad).to(x.device)
+        x = torch.cat((x, ones_pad), dim=-1)
+
+        x[:, :, (self.ico_up["F"])[3:][::4, 0]] = x[:, :, (self.ico["F"])[:, 0]]
+        x[:, :, (self.ico_up["F"])[3:][::4, 1]] = x[:, :, (self.ico["F"])[:, 1]]
+        x[:, :, (self.ico_up["F"])[3:][::4, 2]] = x[:, :, (self.ico["F"])[:, 2]]
+
+        return x
+
+
 class UpSampPad(nn.Module):
     def __init__(self, mesh_lvl):
         # make a call to the parent constructor
@@ -238,12 +266,10 @@ class ResBlock(nn.Module):
         # self.bn_1a = nn.BatchNorm1d(neck_chan)
         self.bn_1a = nn.GroupNorm(32, neck_chan)
 
-
         # MESHCONV -> BN
         self.conv_2a = MeshConv(neck_chan, neck_chan, mesh_lvl=lvl, stride=1)
         # self.bn_2a = nn.BatchNorm1d(neck_chan)
         self.bn_2a = nn.GroupNorm(32, neck_chan)
-
 
         # CONV 1x1 -> BN
         self.conv_3a = nn.Conv1d(neck_chan, out_chan, kernel_size=1, stride=1)

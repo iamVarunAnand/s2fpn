@@ -14,7 +14,7 @@ class Up(nn.Module):
         super(Up, self).__init__()
 
         # upsample
-        self.up = UpSampPad(level)
+        self.up = UpSampNearest(level)
 
         # cross connection
         self.conv = nn.Conv1d(in_ch, out_ch, kernel_size=1, stride=1)
@@ -61,7 +61,7 @@ class CrossUpSamp(nn.Module):
             MeshConv(in_channels, out_channels, mesh_lvl - 1, stride=1),
             nn.GroupNorm(32, out_channels),
             nn.ReLU(inplace=True),
-            UpSampPad(mesh_lvl)
+            UpSampNearest(mesh_lvl)
         )
 
     def forward(self, x):
@@ -87,7 +87,7 @@ class SphericalFPNetLarge(nn.Module):
         self.in_conv = MeshConv(in_ch, fdim, max_level, stride=1)
 
         # final conv + upsample
-        self.out_up_a = UpSamp(max_level)
+        self.out_up_a = UpSampNearest(max_level)
         self.out_conv = MeshConv(self.sdim, out_ch, max_level, stride=1)
 
         # backbone
