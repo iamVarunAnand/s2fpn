@@ -202,7 +202,7 @@ class UpSamp(nn.Module):
 class UpSampNearest(nn.Module):
     def __init__(self, mesh_lvl):
         # make a call to the parent constructor
-        super(UpSamp, self).__init__()
+        super(UpSampNearest, self).__init__()
 
         # initialise the instance variables
         ico = MESHES[mesh_lvl - 1]
