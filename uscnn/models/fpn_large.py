@@ -69,7 +69,7 @@ class CrossUpSamp(nn.Module):
 
 
 class SphericalFPNetLarge(nn.Module):
-    def __init__(self, in_ch, out_ch, max_level=5, min_level=0, fdim=16, fpn_dim=256, sdim=128):
+    def __init__(self, in_ch, out_ch, max_level=5, min_level=0, fdim=16, fpn_dim=64, sdim=32):
         # make a call to the parent class constructor
         super(SphericalFPNetLarge, self).__init__()
 
@@ -87,8 +87,7 @@ class SphericalFPNetLarge(nn.Module):
         self.in_conv = MeshConv(in_ch, fdim, max_level, stride=1)
 
         # final conv + upsample
-        self.out_up_a = UpSampPad(max_level - 1)
-        self.out_up_b = UpSampPad(max_level)
+        self.out_up_a = UpSamp(max_level)
         self.out_conv = MeshConv(self.sdim, out_ch, max_level, stride=1)
 
         # backbone
@@ -106,7 +105,7 @@ class SphericalFPNetLarge(nn.Module):
         self.cross_conv = nn.Conv1d(ch_out, fpn_dim, kernel_size=1, stride=1)
 
         # feature pyramid
-        for i in range(3):
+        for i in range(4):
             # compute the number of in, out channels, and level
             ch_in = int(fdim * (2 ** (self.levels - i - 1)))
             ch_out = fpn_dim
@@ -119,14 +118,14 @@ class SphericalFPNetLarge(nn.Module):
         self.conv_1a = CrossUpSamp(fpn_dim, self.sdim, 1)
         self.conv_1b = CrossUpSamp(self.sdim, self.sdim, 2)
         self.conv_1c = CrossUpSamp(self.sdim, self.sdim, 3)
-        # self.conv_1d = CrossUpSamp(self.sdim, self.sdim, 4)
+        self.conv_1d = CrossUpSamp(self.sdim, self.sdim, 4)
         self.conv_2a = CrossUpSamp(fpn_dim, self.sdim, 2)
         self.conv_2b = CrossUpSamp(self.sdim, self.sdim, 3)
-        # self.conv_2c = CrossUpSamp(self.sdim, self.sdim, 4)
+        self.conv_2c = CrossUpSamp(self.sdim, self.sdim, 4)
         self.conv_3a = CrossUpSamp(fpn_dim, self.sdim, 3)
-        # self.conv_3b = CrossUpSamp(self.sdim, self.sdim, 4)
-        self.conv_4a = nn.Conv1d(fpn_dim, self.sdim, kernel_size=1, stride=1)
-        # self.conv_5a = nn.Conv1d(fpn_dim, self.sdim, kernel_size=1, stride=1)
+        self.conv_3b = CrossUpSamp(self.sdim, self.sdim, 4)
+        self.conv_4a = CrossUpSamp(fpn_dim, self.sdim, 4)
+        self.conv_5a = nn.Conv1d(fpn_dim, self.sdim, kernel_size=1, stride=1)
 
         # initialise the modules
         self.down = nn.ModuleList(self.down)
@@ -147,20 +146,20 @@ class SphericalFPNetLarge(nn.Module):
         x_u.append(self.up[0](x_u[-1], x_d[self.levels - 1]))
         x_u.append(self.up[1](x_u[-1], x_d[self.levels - 2]))
         x_u.append(self.up[2](x_u[-1], x_d[self.levels - 3]))
-        # x_u.append(self.up[3](x_u[-1], x_d[self.levels - 4]))
+        x_u.append(self.up[3](x_u[-1], x_d[self.levels - 4]))
 
         # detection stage
-        x1 = self.conv_1c(self.conv_1b(self.conv_1a(x_u[0])))
-        x2 = self.conv_2b(self.conv_2a(x_u[1]))
-        x3 = self.conv_3a(x_u[2])
+        x1 = self.conv_1d(self.conv_1c(self.conv_1b(self.conv_1a(x_u[0]))))
+        x2 = self.conv_2c(self.conv_2b(self.conv_2a(x_u[1])))
+        x3 = self.conv_3b(self.conv_3a(x_u[2]))
         x4 = self.conv_4a(x_u[3])
-        # x5 = self.conv_5a(x_u[4])
+        x5 = self.conv_5a(x_u[4])
 
         # add all the pyramid levels together
-        x = x1 + x2 + x3 + x4
+        x = x1 + x2 + x3 + x4 + x5
 
         # conv + 2x upsample for final prediction
-        x = self.out_up_b(self.out_up_a(x))
+        x = self.out_up_a(x)
         x = self.out_conv(x)
 
         # return the output of the model
@@ -172,7 +171,7 @@ if __name__ == "__main__":
     from torchinfo import summary
     import torch
 
-    model = SphericalFPNet(4, 15, fdim=32).to(torch.device("cpu"))
+    model = SphericalFPNetLarge(4, 15, fdim=32).to(torch.device("cpu"))
     inputs = torch.randn(1, 4, 10242).to(torch.device("cpu"))
 
     summary(model, input_size=(1, 4, 10242))

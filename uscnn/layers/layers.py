@@ -235,15 +235,20 @@ class ResBlock(nn.Module):
 
         # CONV 1x1 -> BN
         self.conv_1a = nn.Conv1d(in_chan, neck_chan, kernel_size=1, stride=1)
-        self.bn_1a = nn.BatchNorm1d(neck_chan)
+        # self.bn_1a = nn.BatchNorm1d(neck_chan)
+        self.bn_1a = nn.GroupNorm(32, neck_chan)
+
 
         # MESHCONV -> BN
         self.conv_2a = MeshConv(neck_chan, neck_chan, mesh_lvl=lvl, stride=1)
-        self.bn_2a = nn.BatchNorm1d(neck_chan)
+        # self.bn_2a = nn.BatchNorm1d(neck_chan)
+        self.bn_2a = nn.GroupNorm(32, neck_chan)
+
 
         # CONV 1x1 -> BN
         self.conv_3a = nn.Conv1d(neck_chan, out_chan, kernel_size=1, stride=1)
-        self.bn_3a = nn.BatchNorm1d(out_chan)
+        # self.bn_3a = nn.BatchNorm1d(out_chan)
+        self.bn_3a = nn.GroupNorm(32, out_chan)
 
         # RELU
         self.relu = nn.ReLU(inplace=True)
@@ -265,7 +270,8 @@ class ResBlock(nn.Module):
         # skip connection
         if self.diff_chan or coarsen:
             self.conv_1b = nn.Conv1d(in_chan, out_chan, kernel_size=1, stride=1)
-            self.bn_1b = nn.BatchNorm1d(out_chan)
+            # self.bn_1b = nn.BatchNorm1d(out_chan)
+            self.bn_1b = nn.GroupNorm(32, out_chan)
 
             if coarsen:
                 self.seq_b = nn.Sequential(self.conv_1b, self.down, self.bn_1b)
