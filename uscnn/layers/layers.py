@@ -29,7 +29,7 @@ class _MeshConv(nn.Module):
         # initialise the PDO parameters (trainable)
         self.coeffs = Parameter(torch.Tensor(out_channels, in_channels, self.ncoeff))
         self.initialise_weights()
-
+        
         # grab the mesh file
         pkl = MESHES[mesh_lvl]
         self.pkl = pkl
@@ -79,25 +79,38 @@ class MeshConv(_MeshConv):
         grad_face = spmatmul(input, self.G)
         grad_face = grad_face.view(*(input.size()[:2]), 3, -1).permute(0, 1, 3, 2)  # gradient, 3 component per face
 
+        # print(f"[INFO] grad_face {grad_face.dtype}")
+
         # laplacian
         laplacian = spmatmul(input, self.L)
 
+        # print(f"[INFO] laplacian {laplacian.dtype}")
+
         # identity
         identity = input[..., :self.nv_prev]
+
+        # print(f"[INFO] identity {identity.dtype}")
 
         # face gradients along cardinal directions
         grad_face_ew = torch.sum(torch.mul(grad_face, self.EW), keepdim=False, dim=-1)
         grad_face_ns = torch.sum(torch.mul(grad_face, self.NS), keepdim=False, dim=-1)
 
+        # print(f"[INFO] grad_face_ew {grad_face_ew.dtype}")
+        # print(f"[INFO] grad_face_ns {grad_face_ns.dtype}")
+
         # vertex gradients (weighted by face area)
         grad_vert_ew = spmatmul(grad_face_ew, self.F2V)
         grad_vert_ns = spmatmul(grad_face_ns, self.F2V)
+
+        # print(f"[INFO] grad_vert_ew {grad_vert_ew.dtype}")
+        # print(f"[INFO] grad_vert_ns {grad_vert_ns.dtype}")
 
         # features
         feat = [identity, laplacian, grad_vert_ew, grad_vert_ns]
 
         # dot product to compute the PDO convolution
         out = torch.stack(feat, dim=-1)
+
         out = torch.sum(torch.sum(torch.mul(out.unsqueeze(1), self.coeffs.unsqueeze(2)), dim=2), dim=-1)
         out += self.bias.unsqueeze(-1)
 
@@ -436,18 +449,18 @@ class ResBlock(nn.Module):
 
         # CONV 1x1 -> BN
         self.conv_1a = nn.Conv1d(in_chan, neck_chan, kernel_size=1, stride=1)
-        # self.bn_1a = nn.BatchNorm1d(neck_chan)
-        self.bn_1a = nn.GroupNorm(32, neck_chan)
+        self.bn_1a = nn.BatchNorm1d(neck_chan)
+        # self.bn_1a = nn.GroupNorm(32, neck_chan)
 
         # MESHCONV -> BN
         self.conv_2a = MeshConv(neck_chan, neck_chan, mesh_lvl=lvl, stride=1)
-        # self.bn_2a = nn.BatchNorm1d(neck_chan)
-        self.bn_2a = nn.GroupNorm(32, neck_chan)
+        self.bn_2a = nn.BatchNorm1d(neck_chan)
+        # self.bn_2a = nn.GroupNorm(32, neck_chan)
 
         # CONV 1x1 -> BN
         self.conv_3a = nn.Conv1d(neck_chan, out_chan, kernel_size=1, stride=1)
-        # self.bn_3a = nn.BatchNorm1d(out_chan)
-        self.bn_3a = nn.GroupNorm(32, out_chan)
+        self.bn_3a = nn.BatchNorm1d(out_chan)
+        # self.bn_3a = nn.GroupNorm(32, out_chan)
 
         # RELU
         self.relu = nn.ReLU(inplace=True)
@@ -469,8 +482,8 @@ class ResBlock(nn.Module):
         # skip connection
         if self.diff_chan or coarsen:
             self.conv_1b = nn.Conv1d(in_chan, out_chan, kernel_size=1, stride=1)
-            # self.bn_1b = nn.BatchNorm1d(out_chan)
-            self.bn_1b = nn.GroupNorm(32, out_chan)
+            self.bn_1b = nn.BatchNorm1d(out_chan)
+            # self.bn_1b = nn.GroupNorm(32, out_chan)
 
             if coarsen:
                 self.seq_b = nn.Sequential(self.conv_1b, self.down, self.bn_1b)

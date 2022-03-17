@@ -15,6 +15,7 @@ import shutil
 import torch
 import wandb
 import json
+import time
 import os
 
 # # stop pytorch from caching GPU memory
@@ -119,14 +120,14 @@ def train(args, model, train_loader, optimizer, epoch, device, logger, scaler, k
     tot_loss = 0
     count = 0
 
-    for batch_idx, (data, target) in enumerate(train_loader):
+    for batch_idx, (data, target) in enumerate(train_loader):        
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
 
         with torch.cuda.amp.autocast():
             output = model(data)
 
-            assert output.dtype is torch.float16
+            # assert output.dtype is torch.float16
 
             if keep_id is not None:
                 output = output[:, :, keep_id]
@@ -134,7 +135,7 @@ def train(args, model, train_loader, optimizer, epoch, device, logger, scaler, k
 
             loss = F.cross_entropy(output, target.long(), weight=w)
 
-            assert loss.dtype is torch.float32
+            # assert loss.dtype is torch.float32
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -154,7 +155,7 @@ def train(args, model, train_loader, optimizer, epoch, device, logger, scaler, k
     return tot_loss, scaler
 
 
-def test(args, model, test_loader, epoch, device, logger, keep_id=None):
+def test(args, model, test_loader, epoch, device, logger, scaler, keep_id=None):
     w = torch.tensor(label_weight).to(device)
     model.eval()
 
@@ -169,16 +170,20 @@ def test(args, model, test_loader, epoch, device, logger, keep_id=None):
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
-            output = model(data)
 
-            n_data = data.size()[0]
+            with torch.cuda.amp.autocast():
+                output = model(data)
 
-            if keep_id is not None:
-                output = output[:, :, keep_id]
-                target = target[:, keep_id]
+                n_data = data.size()[0]
 
-            loss = F.cross_entropy(output, target.long(), weight=w).item()  # sum up batch loss
-            test_loss += loss
+                if keep_id is not None:
+                    output = output[:, :, keep_id]
+                    target = target[:, keep_id]
+
+                loss = F.cross_entropy(output, target.long(), weight=w)  # sum up batch loss
+            
+            scaler.scale(loss)
+            test_loss += loss.item()
 
             pred = (output.max(dim=1, keepdim=False)[1]).to(torch.int32)  # get the index of the max log-probability
             int_, uni_ = iou_score(pred, target)
@@ -202,7 +207,7 @@ def test(args, model, test_loader, epoch, device, logger, keep_id=None):
     # tabulate mean acc
     logger.info(tabulate(dict(zip(class_names[1:-1], [[acc] for acc in accs])), headers="keys"))
 
-    return np.mean(np.mean(ious)), accs, ious, test_loss
+    return np.mean(np.mean(ious)), accs, ious, test_loss, scaler
 
 
 def main():
@@ -268,11 +273,11 @@ def main():
 
     logger.info("%s", repr(args))
 
-    # # Initialise Weights and Biases Run #
-    # config = {"Run": args.Name, "Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
-    # wandb.init(project='SCNN', entity='tomvarun', config=config)
-    # wandb.run.name = 'USCNN ' + args.model + " " + f"Fold {args.fold}"
-    # wandb.run.save()
+    # Initialise Weights and Biases Run #
+    config = {"Run": args.Name, "Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
+    wandb.init(project='SCNN', entity='tomvarun', config=config)
+    wandb.run.name = 'USCNN ' + args.model + " " + f"Fold {args.fold}"
+    wandb.run.save()
 
     trainset = S2D3DSegLoader(args.data_folder, "train", fold=args.fold, sp_level=args.max_level, in_ch=len(args.in_ch))
     valset = S2D3DSegLoader(args.data_folder, "test", fold=args.fold, sp_level=args.max_level, in_ch=len(args.in_ch))
@@ -281,7 +286,7 @@ def main():
 
     # Load Model
     if args.model == "fpn":
-        model = SphericalFPNetLarge(in_ch=len(args.in_ch), out_ch=len(
+        model = SphericalFPNet(in_ch=len(args.in_ch), out_ch=len(
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
     elif args.model == "unet":
         model = SphericalUNet(in_ch=len(args.in_ch), out_ch=len(
@@ -343,40 +348,45 @@ def main():
     for epoch in range(start_ep + 1, args.epochs + 1):
         if args.decay:
             scheduler.step(epoch)
+        
+        start_time = time.time()
 
         loss, scaler = train(args, model, train_loader, optimizer, epoch, device, logger, scaler, keep_id)
-        miou, accs, ious, val_loss = test(args, model, val_loader, epoch, device, logger, keep_id)
+        miou, accs, ious, val_loss, scaler = test(args, model, val_loader, epoch, device, logger, scaler, keep_id)
 
-        # wandb.log({"Train Loss": loss,
-        #            "Val Loss": val_loss,
-        #            f"{class_names[1]} Acc": accs[0],
-        #            f"{class_names[2]} Acc": accs[1],
-        #            f"{class_names[3]} Acc": accs[2],
-        #            f"{class_names[4]} Acc": accs[3],
-        #            f"{class_names[5]} Acc": accs[4],
-        #            f"{class_names[6]} Acc": accs[5],
-        #            f"{class_names[7]} Acc": accs[6],
-        #            f"{class_names[8]} Acc": accs[7],
-        #            f"{class_names[9]} Acc": accs[8],
-        #            f"{class_names[10]} Acc": accs[9],
-        #            f"{class_names[11]} Acc": accs[10],
-        #            f"{class_names[12]} Acc": accs[11],
-        #            f"{class_names[13]} Acc": accs[12],
-        #            "Mean Acc": np.mean(accs),
-        #            f"{class_names[1]} IoU": ious[0],
-        #            f"{class_names[2]} IoU": ious[1],
-        #            f"{class_names[3]} IoU": ious[2],
-        #            f"{class_names[4]} IoU": ious[3],
-        #            f"{class_names[5]} IoU": ious[4],
-        #            f"{class_names[6]} IoU": ious[5],
-        #            f"{class_names[7]} IoU": ious[6],
-        #            f"{class_names[8]} IoU": ious[7],
-        #            f"{class_names[9]} IoU": ious[8],
-        #            f"{class_names[10]} IoU": ious[9],
-        #            f"{class_names[11]} IoU": ious[10],
-        #            f"{class_names[12]} IoU": ious[11],
-        #            f"{class_names[13]} IoU": ious[12],
-        #            "Mean IoU": np.mean(ious)})
+        end_time = time.time()
+
+        wandb.log({"Train Loss": loss,
+                   "Val Loss": val_loss,
+                   f"{class_names[1]} Acc": accs[0],
+                   f"{class_names[2]} Acc": accs[1],
+                   f"{class_names[3]} Acc": accs[2],
+                   f"{class_names[4]} Acc": accs[3],
+                   f"{class_names[5]} Acc": accs[4],
+                   f"{class_names[6]} Acc": accs[5],
+                   f"{class_names[7]} Acc": accs[6],
+                   f"{class_names[8]} Acc": accs[7],
+                   f"{class_names[9]} Acc": accs[8],
+                   f"{class_names[10]} Acc": accs[9],
+                   f"{class_names[11]} Acc": accs[10],
+                   f"{class_names[12]} Acc": accs[11],
+                   f"{class_names[13]} Acc": accs[12],
+                   "Mean Acc": np.mean(accs),
+                   f"{class_names[1]} IoU": ious[0],
+                   f"{class_names[2]} IoU": ious[1],
+                   f"{class_names[3]} IoU": ious[2],
+                   f"{class_names[4]} IoU": ious[3],
+                   f"{class_names[5]} IoU": ious[4],
+                   f"{class_names[6]} IoU": ious[5],
+                   f"{class_names[7]} IoU": ious[6],
+                   f"{class_names[8]} IoU": ious[7],
+                   f"{class_names[9]} IoU": ious[8],
+                   f"{class_names[10]} IoU": ious[9],
+                   f"{class_names[11]} IoU": ious[10],
+                   f"{class_names[12]} IoU": ious[11],
+                   f"{class_names[13]} IoU": ious[12],
+                   "Mean IoU": np.mean(ious),
+                   "Epoch Time": (end_time - start_time)},)
 
         if args.train_stats_freq > 0 and (epoch % args.train_stats_freq == 0):
             _ = test(args, model, train_loader, epoch, device, logger, keep_id)
@@ -387,8 +397,13 @@ def main():
             is_best = False
 
         # remove sparse matrices since they cannot be stored
-        state_dict_no_sparse = [it for it in model.state_dict().items() if it[1].type() !=
-                                "torch.cuda.sparse.FloatTensor"]
+        sparse_keys = [".G", ".L", ".EW", ".NS", ".F2V"]
+        state_dict_no_sparse = []
+        for k in model.state_dict().keys():
+            is_sparse = np.sum([x in k for x in sparse_keys])
+            if is_sparse == 0:
+                state_dict_no_sparse.append((k, model.state_dict()[k]))
+
         state_dict_no_sparse = OrderedDict(state_dict_no_sparse)
 
         save_checkpoint({
@@ -398,7 +413,6 @@ def main():
             'optimizer': optimizer.state_dict(),
             'scaler': scaler.state_dict()
         }, is_best, epoch, checkpoint_path, "_SUNet", logger)
-
 
 if __name__ == "__main__":
     main()

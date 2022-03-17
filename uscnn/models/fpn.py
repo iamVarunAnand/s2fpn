@@ -1,5 +1,5 @@
 # import the necessary packages
-from ..layers import MeshConv, ResBlock, UpSamp
+from ..layers import MeshConv, ResBlock, MeshConvTranspose, UpSamp
 from torch import nn
 
 
@@ -13,13 +13,15 @@ class Up(nn.Module):
         super(Up, self).__init__()
 
         # MESHCONV.T
-        self.up = UpSamp(level)
+        self.up = MeshConvTranspose(out_ch, out_ch, level, stride=2)
 
         # cross connection
         self.conv = nn.Conv1d(in_ch, out_ch, kernel_size=1, stride=1)
 
         # final meshconv
         self.out_conv = MeshConv(out_ch, out_ch, level)
+        self.out_bn = nn.BatchNorm1d(out_ch)
+        self.out_relu = nn.ReLU(inplace=True)
 
     def forward(self, x1, x2):
         # upsample the previous pyramid layer
@@ -32,7 +34,7 @@ class Up(nn.Module):
         x = x1 + x2
 
         # return the computation of the layer
-        return self.out_conv(x)
+        return self.out_relu(self.out_bn(self.out_conv(x)))
 
 
 class Down(nn.Module):
@@ -57,10 +59,9 @@ class CrossUpSamp(nn.Module):
         super(CrossUpSamp, self).__init__()
 
         self.block = nn.Sequential(
-            MeshConv(in_channels, out_channels, mesh_lvl - 1, stride=1),
-            nn.GroupNorm(32, out_channels),
-            nn.ReLU(inplace=True),
-            UpSamp(mesh_lvl)
+            MeshConvTranspose(in_channels, out_channels, mesh_lvl, stride=2),
+            nn.BatchNorm1d(out_channels),
+            nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
@@ -68,11 +69,12 @@ class CrossUpSamp(nn.Module):
 
 
 class SphericalFPNet(nn.Module):
-    def __init__(self, in_ch, out_ch, max_level=5, min_level=0, fdim=16, fpn_dim=256):
+    def __init__(self, in_ch, out_ch, max_level=5, min_level=0, fdim=16, fpn_dim=256, sdim=128):
         # make a call to the parent class constructor
         super(SphericalFPNet, self).__init__()
 
         # initialise the instance variables
+        self.sdim = sdim
         self.fdim = fdim
         self.max_level = max_level
         self.min_level = min_level
@@ -83,11 +85,20 @@ class SphericalFPNet(nn.Module):
 
         # initial conv
         self.in_conv = MeshConv(in_ch, fdim, max_level, stride=1)
+        self.in_bn = nn.BatchNorm1d(fdim)
+        self.in_relu = nn.ReLU(inplace=True)
 
         # final conv + upsample
-        self.out_conv = nn.Conv1d(128, out_ch, kernel_size=1, stride=1)
-        self.out_up_a = UpSamp(max_level - 1)
-        self.out_up_b = UpSamp(max_level)
+        self.out_conv = nn.Conv1d(self.sdim, out_ch, kernel_size=1, stride=1)
+        self.out_bn_a = nn.BatchNorm1d(out_ch)
+        self.out_relu_a = nn.ReLU(inplace=True)
+        self.out_up_a = Up(64, out_ch, max_level - 1)
+        self.out_bn_b = nn.BatchNorm1d(out_ch)
+        self.out_relu_b = nn.ReLU(inplace=True)
+        self.out_up_b = Up(32, out_ch, max_level)
+
+        # self.out_conv_a = MeshConvTranspose(self.sdim, out_ch, max_level - 1, stride=2)
+        # self.out_conv_b = MeshConvTranspose(out_ch, out_ch, max_level, stride=2)
 
         # backbone
         for i in range(self.levels):
@@ -113,13 +124,13 @@ class SphericalFPNet(nn.Module):
             self.up.append(Up(ch_in, ch_out, lvl))
 
         # upsampling convolutions for detection stage
-        self.conv_1a = CrossUpSamp(fpn_dim, 128, 1)
-        self.conv_1b = CrossUpSamp(128, 128, 2)
-        self.conv_1c = CrossUpSamp(128, 128, 3)
-        self.conv_2a = CrossUpSamp(fpn_dim, 128, 2)
-        self.conv_2b = CrossUpSamp(128, 128, 3)
-        self.conv_3a = CrossUpSamp(fpn_dim, 128, 3)
-        self.conv_4a = nn.Conv1d(fpn_dim, 128, kernel_size=1, stride=1)
+        self.conv_1a = CrossUpSamp(fpn_dim, self.sdim, 1)
+        self.conv_1b = CrossUpSamp(self.sdim, self.sdim, 2)
+        self.conv_1c = CrossUpSamp(self.sdim, self.sdim, 3)
+        self.conv_2a = CrossUpSamp(fpn_dim, self.sdim, 2)
+        self.conv_2b = CrossUpSamp(self.sdim, self.sdim, 3)
+        self.conv_3a = CrossUpSamp(fpn_dim, self.sdim, 3)
+        self.conv_4a = nn.Conv1d(fpn_dim, self.sdim, kernel_size=1, stride=1)
 
         # initialise the modules
         self.down = nn.ModuleList(self.down)
@@ -127,7 +138,7 @@ class SphericalFPNet(nn.Module):
 
     def forward(self, x):
         # pass through initial MESHCONV
-        x_d = [self.in_conv(x)]
+        x_d = [self.in_relu(self.in_bn(self.in_conv(x)))]
 
         # loop through and pass the input through the encoder
         for i in range(self.levels):
@@ -151,8 +162,10 @@ class SphericalFPNet(nn.Module):
         x = x1 + x2 + x3 + x4
 
         # conv + 4x upsample for final prediction
-        x = self.out_conv(x)
-        x = self.out_up_b(self.out_up_a(x))
+        # x = self.out_conv_b(self.out_conv_a(x))
+        x = self.out_relu_a(self.out_bn_a(self.out_conv(x)))
+        x = self.out_relu_b(self.out_bn_b(self.out_up_a(x, x_d[1])))
+        x = self.out_up_b(x, x_d[0])
 
         # return the output of the model
         return x
@@ -168,10 +181,10 @@ if __name__ == "__main__":
 
     summary(model, input_size=(1, 4, 10242))
 
-    # writer = SummaryWriter('logs')
-    # writer.add_graph(model, inputs)
+#     # writer = SummaryWriter('logs')
+#     # writer.add_graph(model, inputs)
 
-    # # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
-    # #     model(inputs)
+#     # # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
+#     # #     model(inputs)
 
-    # # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))
+#     # # print(prof.key_averages().table(sort_by="cpu_memory_usage", row_limit=10))

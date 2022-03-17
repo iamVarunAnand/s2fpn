@@ -180,15 +180,23 @@ class SphericalUNet(nn.Module):
         for i in range(self.levels):
             x_.append(self.down[i](x_[-1]))
 
+        # print(f"[INFO] after down: {x_[-1].dtype}")
+
         # first upsample
         x = self.up[0](x_[-1], x_[-2])
+
+        # print(f"[INFO] after first up: {x.dtype}")
 
         # loop through ans pass through the decoder
         for i in range(self.levels - 1):
             x = self.up[i + 1](x, x_[-3 - i])
 
+        # print(f"[INFO] after up: {x.dtype}")
+
         # pass through final MESHCONV
         x = self.out_conv(x)
+
+        # print(f"[INFO] after final conv: {x.dtype}")
 
         # return the output of the model
         return x

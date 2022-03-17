@@ -87,7 +87,7 @@ class SphericalFPNetLarge(nn.Module):
         self.in_conv = MeshConv(in_ch, fdim, max_level, stride=1)
 
         # final conv + upsample
-        self.out_up_a = UpSampNearest(max_level)
+        self.out_up_a = UpSamp(max_level)
         self.out_conv = MeshConv(self.sdim, out_ch, max_level, stride=1)
 
         # backbone
