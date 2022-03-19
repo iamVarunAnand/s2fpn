@@ -1,5 +1,5 @@
 # import the necessary packages
-from ..layers import MeshConv, ResBlock, MeshConvTranspose, UpSamp
+from ..layers import MeshConv, ResBlock, MeshConvTransposeBilinear, UpSamp
 from torch import nn
 
 
@@ -13,7 +13,7 @@ class Up(nn.Module):
         super(Up, self).__init__()
 
         # MESHCONV.T
-        self.up = MeshConvTranspose(out_ch, out_ch, level, stride=2)
+        self.up = MeshConvTransposeBilinear(out_ch, out_ch, level, stride=2)
 
         # cross connection
         self.conv = nn.Conv1d(in_ch, out_ch, kernel_size=1, stride=1)
@@ -59,7 +59,7 @@ class CrossUpSamp(nn.Module):
         super(CrossUpSamp, self).__init__()
 
         self.block = nn.Sequential(
-            MeshConvTranspose(in_channels, out_channels, mesh_lvl, stride=2),
+            MeshConvTransposeBilinear(in_channels, out_channels, mesh_lvl, stride=2),
             nn.BatchNorm1d(out_channels),
             nn.ReLU(inplace=True)
         )
@@ -97,8 +97,8 @@ class SphericalFPNet(nn.Module):
         self.out_relu_b = nn.ReLU(inplace=True)
         self.out_up_b = Up(32, out_ch, max_level)
 
-        # self.out_conv_a = MeshConvTranspose(self.sdim, out_ch, max_level - 1, stride=2)
-        # self.out_conv_b = MeshConvTranspose(out_ch, out_ch, max_level, stride=2)
+        # self.out_conv_a = MeshConvTransposeBilinear(self.sdim, out_ch, max_level - 1, stride=2)
+        # self.out_conv_b = MeshConvTransposeBilinear(out_ch, out_ch, max_level, stride=2)
 
         # backbone
         for i in range(self.levels):
@@ -107,11 +107,14 @@ class SphericalFPNet(nn.Module):
             ch_out = int(fdim * (2 ** (i + 1)))
             lvl = max_level - i - 1
 
-            # add a downsample block
-            self.down.append(Down(ch_in, ch_out, lvl))
+            # add a downsample block (512 at L0)
+            if i == (self.levels - 1):
+                self.down.append(Down(ch_in, ch_in, lvl))
+            else:
+                self.down.append(Down(ch_in, ch_out, lvl))
 
         # 1x1 cross connection at lvl-0
-        self.cross_conv = nn.Conv1d(ch_out, fpn_dim, kernel_size=1, stride=1)
+        self.cross_conv = nn.Conv1d(ch_in, fpn_dim, kernel_size=1, stride=1)
 
         # feature pyramid
         for i in range(3):
