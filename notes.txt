@@ -1,106 +1,27 @@
-UNet lvl-5 fdim-16: 
-==========================================================================================
-Layer (type:depth-idx)                   Output Shape              Param #
-==========================================================================================
-SphericalUNet                            --                        --
-├─ModuleList: 1-1                        --                        --
-├─ModuleList: 1-2                        --                        --
-├─MeshConv: 1-3                          [16, 16, 10242]           272
-├─ModuleList: 1-1                        --                        --
-│    └─Down: 2-1                         [16, 32, 2562]            --
-│    │    └─ResBlock: 3-1                [16, 32, 2562]            2,592
-│    └─Down: 2-2                         [16, 64, 642]             --
-│    │    └─ResBlock: 3-2                [16, 64, 642]             9,792
-│    └─Down: 2-3                         [16, 128, 162]            --
-│    │    └─ResBlock: 3-3                [16, 128, 162]            38,016
-│    └─Down: 2-4                         [16, 256, 42]             --
-│    │    └─ResBlock: 3-4                [16, 256, 42]             149,760
-│    └─Down: 2-5                         [16, 256, 12]             --
-│    │    └─ResBlock: 3-5                [16, 256, 12]             461,824
-├─ModuleList: 1-2                        --                        --
-│    └─Up: 2-6                           [16, 128, 42]             --
-│    │    └─MeshConvTranspose: 3-6       [16, 256, 42]             262,400
-│    │    └─ResBlock: 3-7                [16, 128, 42]             214,528
-│    └─Up: 2-7                           [16, 64, 162]             --
-│    │    └─MeshConvTranspose: 3-8       [16, 128, 162]            65,664
-│    │    └─ResBlock: 3-9                [16, 64, 162]             54,016
-│    └─Up: 2-8                           [16, 32, 642]             --
-│    │    └─MeshConvTranspose: 3-10      [16, 64, 642]             16,448
-│    │    └─ResBlock: 3-11               [16, 32, 642]             13,696
-│    └─Up: 2-9                           [16, 16, 2562]            --
-│    │    └─MeshConvTranspose: 3-12      [16, 32, 2562]            4,128
-│    │    └─ResBlock: 3-13               [16, 16, 2562]            3,520
-│    └─Up: 2-10                          [16, 16, 10242]           --
-│    │    └─MeshConvTranspose: 3-14      [16, 16, 10242]           1,040
-│    │    └─ResBlock: 3-15               [16, 16, 10242]           2,496
-├─MeshConv: 1-4                          [16, 13, 10242]           845
+UNet L5
+	- mct padded
+	- mct bilinear
+	- mct nearest neighbours
 
-==========================================================================================
-Total params: 1,301,037
-Trainable params: 1,301,037
-Non-trainable params: 0
-Total mult-adds (G): 1.33
-==========================================================================================
-Input size (MB): 2.62
-Forward/backward pass size (MB): 538.00
-Params size (MB): 5.20
-Estimated Total Size (MB): 545.83
-==========================================================================================
-
-SphericalFPNet: lvl-5 fdim-16
-==========================================================================================
-Layer (type:depth-idx)                   Output Shape              Param #
-==========================================================================================
-SphericalFPNet                           --                        --
-├─ModuleList: 1-1                        --                        --
-├─ModuleList: 1-2                        --                        --
-├─MeshConv: 1-3                          [1, 16, 10242]            272
-├─ModuleList: 1-1                        --                        --
-│    └─Down: 2-1                         [1, 32, 2562]             --
-│    │    └─ResBlock: 3-1                [1, 32, 2562]             2,592
-│    └─Down: 2-2                         [1, 64, 642]              --
-│    │    └─ResBlock: 3-2                [1, 64, 642]              9,792
-│    └─Down: 2-3                         [1, 128, 162]             --
-│    │    └─ResBlock: 3-3                [1, 128, 162]             38,016
-│    └─Down: 2-4                         [1, 256, 42]              --
-│    │    └─ResBlock: 3-4                [1, 256, 42]              149,760
-│    └─Down: 2-5                         [1, 512, 12]              --
-│    │    └─ResBlock: 3-5                [1, 512, 12]              594,432
-├─Conv1d: 1-4                            [1, 256, 12]              131,328
-├─ModuleList: 1-2                        --                        --
-│    └─Up: 2-6                           [1, 256, 42]              --
-│    │    └─MeshConvTranspose: 3-6       [1, 256, 42]              262,400
-│    │    └─Conv1d: 3-7                  [1, 256, 42]              65,792
-│    └─Up: 2-7                           [1, 256, 162]             --
-│    │    └─MeshConvTranspose: 3-8       [1, 256, 162]             262,400
-│    │    └─Conv1d: 3-9                  [1, 256, 162]             33,024
-│    └─Up: 2-8                           [1, 256, 642]             --
-│    │    └─MeshConvTranspose: 3-10      [1, 256, 642]             262,400
-│    │    └─Conv1d: 3-11                 [1, 256, 642]             16,640
-├─MeshConvTranspose: 1-5                 [1, 128, 42]              131,200
-├─MeshConvTranspose: 1-6                 [1, 128, 162]             65,664
-├─MeshConvTranspose: 1-7                 [1, 128, 642]             65,664
-├─MeshConvTranspose: 1-8                 [1, 128, 162]             131,200
-├─MeshConvTranspose: 1-9                 [1, 128, 642]             65,664
-├─MeshConvTranspose: 1-10                [1, 128, 642]             131,200
-├─Conv1d: 1-11                           [1, 128, 642]             32,896
-├─MeshConvTranspose: 1-12                [1, 128, 2562]            65,664
-├─MeshConvTranspose: 1-13                [1, 15, 10242]            7,695
-==========================================================================================
-Total params: 2,525,695
-Trainable params: 2,525,695
-Non-trainable params: 0
-Total mult-adds (M): 90.60
-==========================================================================================
-Input size (MB): 0.16
-Forward/backward pass size (MB): 25.09
-Params size (MB): 10.10
-Estimated Total Size (MB): 35.35
-==========================================================================================
+FPN L3
+	- final level 512
+	- upsample in pyramid: MCT -> ADD -> MeshConv + BN + ReLU
+	- cross up sample in pyramid to segmentation: MCT + BN + ReLU
+	- final prediction: [MCT + BN + ReLU] + MCT
+	
+FPN L3:5
+	- FPN L3 (w/o final prediction)
+	- 2x pyramid upsample
 
 
-UNet lvl-7 fdim-16: 20,667,949 parameters
-
-Changes:
-    - upsampling routine changed to do only padding with ones. (needs to be followed by mesh conv to learn values for upsampled vertices)
-    - changes to how final prediction is made. now changed to upsamp + upsamp + conv
+Experiments to Run:
+	1. Benefits of Upsampling Scheme:
+		- unet l5 padded
+		- unet l5 bilinear
+		- unet l5 nearest neighbours
+		- fpn  l3 padded
+		- fpn  l3 bilinear
+	
+	2. UNet vs FPN:
+		- unet l5 bilinear
+		- fpn  l3:5 bilinear

@@ -41,6 +41,6 @@ MESHES = {
     3: load_mesh("uscnn/meshes/icosphere_3.pkl"),
     4: load_mesh("uscnn/meshes/icosphere_4.pkl"),
     5: load_mesh("uscnn/meshes/icosphere_5.pkl"),
-    # 6: load_mesh("uscnn/meshes/icosphere_6.pkl"),
-    # 7: load_mesh("uscnn/meshes/icosphere_7.pkl"),
+    6: load_mesh("uscnn/meshes/icosphere_6.pkl"),
+    7: load_mesh("uscnn/meshes/icosphere_7.pkl"),
 }

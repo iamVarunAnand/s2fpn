@@ -219,6 +219,7 @@ class MeshConvTranspose(_MeshConv):
         # return the computed feature maps
         return out
 
+
 class MeshConvTransposeNearest(_MeshConv):
     def __init__(self, in_channels, out_channels, mesh_lvl, stride=2, bias=True):
         # assert for supported strides
@@ -281,6 +282,7 @@ class MeshConvTransposeNearest(_MeshConv):
         # return the computed feature maps
         return out
 
+
 class MeshConvTransposeBilinear(_MeshConv):
     def __init__(self, in_channels, out_channels, mesh_lvl, stride=2, bias=True):
         # assert for supported strides
@@ -310,9 +312,12 @@ class MeshConvTransposeBilinear(_MeshConv):
         input = torch.cat((input, ones_pad), dim=-1)
 
         # bilinear upsampling
-        input[:, :, (self.pkl["F"])[3:][::4, 0]] = (input[:, :, (self.ico["F"])[:, 0]] + input[:, :, (self.ico["F"])[:, 1]]) / 2
-        input[:, :, (self.pkl["F"])[3:][::4, 1]] = (input[:, :, (self.ico["F"])[:, 1]] + input[:, :, (self.ico["F"])[:, 2]]) / 2
-        input[:, :, (self.pkl["F"])[3:][::4, 2]] = (input[:, :, (self.ico["F"])[:, 2]] + input[:, :, (self.ico["F"])[:, 1]]) / 2
+        input[:, :, (self.pkl["F"])[3:][::4, 0]] = (
+            input[:, :, (self.ico["F"])[:, 0]] + input[:, :, (self.ico["F"])[:, 1]]) / 2
+        input[:, :, (self.pkl["F"])[3:][::4, 1]] = (
+            input[:, :, (self.ico["F"])[:, 1]] + input[:, :, (self.ico["F"])[:, 2]]) / 2
+        input[:, :, (self.pkl["F"])[3:][::4, 2]] = (
+            input[:, :, (self.ico["F"])[:, 2]] + input[:, :, (self.ico["F"])[:, 1]]) / 2
 
         # gradient
         grad_face = spmatmul(input, self.G)
