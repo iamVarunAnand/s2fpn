@@ -1,5 +1,5 @@
 # import the necessary packages
-from uscnn.models import SphericalFPNet, SphericalFPNetLarge
+from uscnn.models import SphericalFPNet, SphericalFPNetLarge, SphericalFPNetL5
 from torch.utils.data import DataLoader
 from uscnn.models import SphericalUNet
 from collections import OrderedDict
@@ -274,7 +274,7 @@ def main():
 
     # Load Model
     if args.model == "fpn":
-        model = SphericalFPNetLarge(in_ch=len(args.in_ch), out_ch=len(
+        model = SphericalFPNetL5(in_ch=len(args.in_ch), out_ch=len(
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
     elif args.model == "unet":
         model = SphericalUNet(in_ch=len(args.in_ch), out_ch=len(
