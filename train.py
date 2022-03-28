@@ -274,7 +274,7 @@ def main():
 
     # Load Model
     if args.model == "fpn":
-        model = SphericalFPNet(in_ch=len(args.in_ch), out_ch=len(
+        model = SphericalFPNetLarge(in_ch=len(args.in_ch), out_ch=len(
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
     elif args.model == "unet":
         model = SphericalUNet(in_ch=len(args.in_ch), out_ch=len(

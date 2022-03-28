@@ -105,14 +105,24 @@ class MeshConv(_MeshConv):
         # print(f"[INFO] grad_vert_ew {grad_vert_ew.dtype}")
         # print(f"[INFO] grad_vert_ns {grad_vert_ns.dtype}")
 
-        # features
-        feat = [identity, laplacian, grad_vert_ew, grad_vert_ns]
+        # # features
+        # feat = [identity, laplacian, grad_vert_ew, grad_vert_ns]
 
-        # dot product to compute the PDO convolution
-        out = torch.stack(feat, dim=-1)
+        feat1 = torch.matmul(identity.transpose(1, 2), self.coeffs[..., 0].unsqueeze(dim=0).transpose(1, 2)).transpose(1, 2)
+        feat2 = torch.matmul(laplacian.transpose(1, 2), self.coeffs[..., 1].unsqueeze(dim=0).transpose(1, 2)).transpose(1, 2)
+        feat3 = torch.matmul(grad_vert_ew.transpose(1, 2), self.coeffs[..., 2].unsqueeze(dim=0).transpose(1, 2)).transpose(1, 2)
+        feat4 = torch.matmul(grad_vert_ns.transpose(1, 2), self.coeffs[..., 3].unsqueeze(dim=0).transpose(1, 2)).transpose(1, 2)
 
-        out = torch.sum(torch.sum(torch.mul(out.unsqueeze(1), self.coeffs.unsqueeze(2)), dim=2), dim=-1)
-        out += self.bias.unsqueeze(-1)
+        out = feat1 + feat2 + feat3 + feat4
+        out += self.bias.unsqueeze(dim=-1)
+
+        # # # dot product to compute the PDO convolution
+        # # out = torch.stack(feat, dim=-1)
+
+        # # out = out.transpose(1, 2).unsqueeze(dim=0)
+        # # coeffs = self.coeffs[:, None, None, ...]
+        # out = torch.sum(torch.sum(torch.mul(out.unsqueeze(1), self.coeffs.unsqueeze(2)), dim=2), dim=-1)
+        # out += self.bias.unsqueeze(-1)
 
         # return the computed feature maps
         return out
@@ -208,13 +218,21 @@ class MeshConvTranspose(_MeshConv):
         grad_vert_ew = spmatmul(grad_face_ew, self.F2V)
         grad_vert_ns = spmatmul(grad_face_ns, self.F2V)
 
-        # features
-        feat = [identity, laplacian, grad_vert_ew, grad_vert_ns]
+        # # features
+        # feat = [identity, laplacian, grad_vert_ew, grad_vert_ns]
 
-        # dot product to compute the PDO convolution
-        out = torch.stack(feat, dim=-1)
-        out = torch.sum(torch.sum(torch.mul(out.unsqueeze(1), self.coeffs.unsqueeze(2)), dim=2), dim=-1)
-        out += self.bias.unsqueeze(-1)
+        # # dot product to compute the PDO convolution
+        # out = torch.stack(feat, dim=-1)
+        # out = torch.sum(torch.sum(torch.mul(out.unsqueeze(1), self.coeffs.unsqueeze(2)), dim=2), dim=-1)
+        # out += self.bias.unsqueeze(-1)
+
+        feat1 = torch.matmul(identity.transpose(1, 2), self.coeffs[..., 0].unsqueeze(dim=0).transpose(1, 2)).transpose(1, 2)
+        feat2 = torch.matmul(laplacian.transpose(1, 2), self.coeffs[..., 1].unsqueeze(dim=0).transpose(1, 2)).transpose(1, 2)
+        feat3 = torch.matmul(grad_vert_ew.transpose(1, 2), self.coeffs[..., 2].unsqueeze(dim=0).transpose(1, 2)).transpose(1, 2)
+        feat4 = torch.matmul(grad_vert_ns.transpose(1, 2), self.coeffs[..., 3].unsqueeze(dim=0).transpose(1, 2)).transpose(1, 2)
+
+        out = feat1 + feat2 + feat3 + feat4
+        out += self.bias.unsqueeze(dim=-1)
 
         # return the computed feature maps
         return out

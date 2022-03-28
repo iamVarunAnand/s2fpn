@@ -167,8 +167,8 @@ if __name__ == "__main__":
     from torchinfo import summary
     import torch
 
-    model = SphericalFPNetLarge(4, 15, min_level=2, fdim=32).to(torch.device("cpu"))
-    inputs = torch.randn(1, 4, 10242).to(torch.device("cpu"))
+    model = SphericalFPNetLarge(4, 15, min_level=2, fdim=32)
+    inputs = torch.randn(1, 4, 10242)
 
     summary(model, input_size=(1, 4, 10242))
 
