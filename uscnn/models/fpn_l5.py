@@ -1,10 +1,10 @@
 # import the necessary packages
-from ..layers import MeshConv, ResBlock, MeshConvTranspose, UpSamp
+from ..layers import MeshConv, ResBlock, MeshConvTranspose, MeshConvTransposeBilinear
 from torch import nn
 
 
 class Up(nn.Module):
-    def __init__(self, in_ch, out_ch, level, bias=True):
+    def __init__(self, in_ch, out_ch, level, up=MeshConvTranspose, bias=True):
         """
             use mesh_file for the mesh of one-level up
         """
@@ -13,7 +13,7 @@ class Up(nn.Module):
         super(Up, self).__init__()
 
         # MESHCONV.T
-        self.up = MeshConvTranspose(out_ch, out_ch, level, stride=2)
+        self.up = up(out_ch, out_ch, level, stride=2)
         self.up_bn = nn.BatchNorm1d(out_ch)
         self.up_relu = nn.ReLU(inplace=True)
 
@@ -59,11 +59,11 @@ class Down(nn.Module):
 
 
 class CrossUpSamp(nn.Module):
-    def __init__(self, in_channels, out_channels, mesh_lvl):
+    def __init__(self, in_channels, out_channels, mesh_lvl, up=MeshConvTranspose):
         super(CrossUpSamp, self).__init__()
 
         self.block = nn.Sequential(
-            MeshConvTranspose(in_channels, out_channels, mesh_lvl, stride=2),
+            up(in_channels, out_channels, mesh_lvl, stride=2),
             nn.BatchNorm1d(out_channels),
             nn.ReLU(inplace=True)
         )
@@ -72,13 +72,15 @@ class CrossUpSamp(nn.Module):
         return self.block(x)
 
 class SphericalFPNetL5(nn.Module):
-    def __init__(self, in_ch, out_ch, max_level=5, min_level=0, fdim=16, fpn_dim=256, sdim=128):
+    def __init__(self, in_ch, out_ch, up="zero-pad", max_level=5, min_level=0, fdim=16, fpn_dim=256, sdim=128):
         # make a call to the parent class constructor
         super(SphericalFPNetL5, self).__init__()
 
         # initialise the instance variables
         self.sdim = sdim
         self.fdim = fdim
+        self.upsample = MeshConvTranspose if up == "zero-pad" else MeshConvTransposeBilinear
+
         self.max_level = max_level
         self.min_level = min_level
         self.levels = max_level - min_level
@@ -121,25 +123,25 @@ class SphericalFPNetL5(nn.Module):
             lvl = min_level + i + 1
 
             # add an upsample block
-            self.up.append(Up(ch_in, ch_out, lvl))
+            self.up.append(Up(ch_in, ch_out, lvl, up=self.upsample))
 
         # upsampling convolutions for detection stage
-        self.conv_1a = CrossUpSamp(fpn_dim, self.sdim, min_level + 1)
-        self.conv_1b = CrossUpSamp(self.sdim, self.sdim, min_level + 2)
-        self.conv_1c = CrossUpSamp(self.sdim, self.sdim, min_level + 3)
-        self.conv_1d = CrossUpSamp(self.sdim, self.sdim, min_level + 4)
+        self.conv_1a = CrossUpSamp(fpn_dim, self.sdim, min_level + 1, up=self.upsample)
+        self.conv_1b = CrossUpSamp(self.sdim, self.sdim, min_level + 2, up=self.upsample)
+        self.conv_1c = CrossUpSamp(self.sdim, self.sdim, min_level + 3, up=self.upsample)
+        self.conv_1d = CrossUpSamp(self.sdim, self.sdim, min_level + 4, up=self.upsample)
         # self.conv_1e = CrossUpSamp(self.sdim, self.sdim, min_level + 5)
 
-        self.conv_2a = CrossUpSamp(fpn_dim, self.sdim, min_level + 2)
-        self.conv_2b = CrossUpSamp(self.sdim, self.sdim, min_level + 3)
-        self.conv_2c = CrossUpSamp(self.sdim, self.sdim, min_level + 4)
+        self.conv_2a = CrossUpSamp(fpn_dim, self.sdim, min_level + 2, up=self.upsample)
+        self.conv_2b = CrossUpSamp(self.sdim, self.sdim, min_level + 3, up=self.upsample)
+        self.conv_2c = CrossUpSamp(self.sdim, self.sdim, min_level + 4, up=self.upsample)
         # self.conv_2d = CrossUpSamp(self.sdim, self.sdim, min_level + 5)
 
-        self.conv_3a = CrossUpSamp(fpn_dim, self.sdim, min_level + 3)
-        self.conv_3b = CrossUpSamp(self.sdim, self.sdim, min_level + 4)
+        self.conv_3a = CrossUpSamp(fpn_dim, self.sdim, min_level + 3, up=self.upsample)
+        self.conv_3b = CrossUpSamp(self.sdim, self.sdim, min_level + 4, up=self.upsample)
         # self.conv_3c = CrossUpSamp(self.sdim, self.sdim, min_level + 5)
 
-        self.conv_4a = CrossUpSamp(fpn_dim, self.sdim, min_level + 4)
+        self.conv_4a = CrossUpSamp(fpn_dim, self.sdim, min_level + 4, up=self.upsample)
         # self.conv_4b = CrossUpSamp(self.sdim, self.sdim, min_level + 5)
 
         # self.conv_5a = CrossUpSamp(fpn_dim, self.sdim, min_level + 5)
@@ -194,7 +196,7 @@ if __name__ == "__main__":
     from torchinfo import summary
     import torch
 
-    model = SphericalFPNetL5(4, 15, min_level=1, fdim=32)
-    inputs = torch.randn(1, 4, 10242)
+    model = SphericalFPNetL5(4, 15, min_level=1, fdim=32, up="bilinear")
+    inputs = torch.randn(2, 4, 10242)
 
-    summary(model, input_size=(1, 4, 10242))
+    summary(model, input_size=(2, 4, 10242))

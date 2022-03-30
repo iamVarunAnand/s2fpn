@@ -223,6 +223,7 @@ def main():
     parser.add_argument('--min_level', type=int, default=0, help='min mesh level')
     parser.add_argument('--model', type=str, choices=["fpn", "unet"], default="fpn")
     parser.add_argument('--feat', type=int, default=4, help='filter dimensions')
+    parser.add_argument('--upsample', type=str, default='zero-pad', help='upsampling method to use')
     parser.add_argument('--log_dir', type=str, default="log",
                         help='log directory for run')
     parser.add_argument('--decay', action="store_true", help="switch to decay learning rate")
@@ -262,9 +263,11 @@ def main():
     logger.info("%s", repr(args))
 
     # Initialise Weights and Biases Run #
-    config = {"Run": args.Name, "Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
+    config = {"Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
     wandb.init(project='SCNN', entity='tomvarun', config=config)
-    wandb.run.name = 'USCNN ' + args.model + " " + f"Fold {args.fold}"
+
+    # rename the weights and biases run
+    wandb.run.name = f"ugscnn {args.model} l1:5 - {args.upsample} - fold {args.fold}"
     wandb.run.save()
 
     trainset = S2D3DSegLoader(args.data_folder, "train", fold=args.fold, sp_level=args.max_level, in_ch=len(args.in_ch))
@@ -275,7 +278,7 @@ def main():
     # Load Model
     if args.model == "fpn":
         model = SphericalFPNetL5(in_ch=len(args.in_ch), out_ch=len(
-            classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
+            classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat, up=args.upsample)
     elif args.model == "unet":
         model = SphericalUNet(in_ch=len(args.in_ch), out_ch=len(
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat)
