@@ -1,10 +1,13 @@
 # import the necessary packages
 from ..layers import MeshConv, ResBlock, MeshConvTranspose, MeshConvTransposeBilinear
 from torch import nn
+import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 class Up(nn.Module):
-    def __init__(self, in_ch, out_ch, level, up=MeshConvTranspose, bias=True):
+    def __init__(self, in_ch, out_ch, level, up=MeshConvTranspose):
         """
             use mesh_file for the mesh of one-level up
         """
@@ -42,7 +45,7 @@ class Up(nn.Module):
 
 
 class Down(nn.Module):
-    def __init__(self, in_ch, out_ch, level, bias=True):
+    def __init__(self, in_ch, out_ch, level):
         """
             use the mesh_file for the mesh of one-level down
         """
@@ -71,33 +74,29 @@ class CrossUpSamp(nn.Module):
     def forward(self, x):
         return self.block(x)
 
-class SphericalFPNetL5(nn.Module):
-    def __init__(self, in_ch, out_ch, up="zero-pad", max_level=5, min_level=0, fdim=16, fpn_dim=256, sdim=128):
+
+class SphericalFPNet(nn.Module):
+    def __init__(self, in_ch, out_ch, up="zero-pad", max_level=5, min_level=0, fdim=32, fpn_dim=256, sdim=128):
         # make a call to the parent class constructor
-        super(SphericalFPNetL5, self).__init__()
+        super(SphericalFPNet, self).__init__()
 
         # initialise the instance variables
         self.sdim = sdim
         self.fdim = fdim
         self.upsample = MeshConvTranspose if up == "zero-pad" else MeshConvTransposeBilinear
-
         self.max_level = max_level
         self.min_level = min_level
         self.levels = max_level - min_level
-
-        # initialise lists to store the encoder and decoder stages
-        self.down, self.up = [], []
 
         # initial conv
         self.in_conv = MeshConv(in_ch, fdim, max_level, stride=1)
         self.in_bn = nn.BatchNorm1d(fdim)
         self.in_relu = nn.ReLU(inplace=True)
 
-        # final conv
-        self.out_conv = MeshConv(self.sdim, out_ch, max_level)
-        self.out_bn = nn.BatchNorm1d(out_ch)
+        # initialise lists to store the encoder, pyramid, and decoder stages
+        self.down, self.up, self.cross = [], [], []
 
-        # backbone
+        # encoder
         for i in range(self.levels):
             # compute the number of in, out channels, and level
             ch_in = int(fdim * (2 ** i))
@@ -105,18 +104,23 @@ class SphericalFPNetL5(nn.Module):
             lvl = max_level - i - 1
 
             # add a downsample block (512 at L0)
-            if i == (self.levels - 1):
+            if i == (self.levels - 1) and min_level == 0:
                 self.down.append(Down(ch_in, ch_in, lvl))
+                print(f"encoder: {ch_in}-{ch_in}-{lvl}")
             else:
                 self.down.append(Down(ch_in, ch_out, lvl))
+                print(f"encoder: {ch_in}-{ch_out}-{lvl}")
 
-        # 1x1 cross connection at lvl-0
-        self.cross_conv = nn.Conv1d(ch_in, fpn_dim, kernel_size=1, stride=1)
+        # number of channels at lowest level
+        in_ch = ch_out if min_level != 0 else ch_in
+
+        # 1x1 cross connection at lowest level to start fpn
+        self.cross_conv = nn.Conv1d(in_ch, fpn_dim, kernel_size=1, stride=1)
         self.cross_bn = nn.BatchNorm1d(fpn_dim)
         self.cross_relu = nn.ReLU(inplace=True)
 
         # feature pyramid
-        for i in range(4):
+        for i in range(self.levels):
             # compute the number of in, out channels, and level
             ch_in = int(fdim * (2 ** (self.levels - i - 1)))
             ch_out = fpn_dim
@@ -125,78 +129,87 @@ class SphericalFPNetL5(nn.Module):
             # add an upsample block
             self.up.append(Up(ch_in, ch_out, lvl, up=self.upsample))
 
-        # upsampling convolutions for detection stage
-        self.conv_1a = CrossUpSamp(fpn_dim, self.sdim, min_level + 1, up=self.upsample)
-        self.conv_1b = CrossUpSamp(self.sdim, self.sdim, min_level + 2, up=self.upsample)
-        self.conv_1c = CrossUpSamp(self.sdim, self.sdim, min_level + 3, up=self.upsample)
-        self.conv_1d = CrossUpSamp(self.sdim, self.sdim, min_level + 4, up=self.upsample)
-        # self.conv_1e = CrossUpSamp(self.sdim, self.sdim, min_level + 5)
+        # decoder
+        for i in range(min_level, max_level + 1):
+            # compute the difference in levels
+            lvl_diff = max_level - i
 
-        self.conv_2a = CrossUpSamp(fpn_dim, self.sdim, min_level + 2, up=self.upsample)
-        self.conv_2b = CrossUpSamp(self.sdim, self.sdim, min_level + 3, up=self.upsample)
-        self.conv_2c = CrossUpSamp(self.sdim, self.sdim, min_level + 4, up=self.upsample)
-        # self.conv_2d = CrossUpSamp(self.sdim, self.sdim, min_level + 5)
+            # list to store upsampling stages
+            modules = []
 
-        self.conv_3a = CrossUpSamp(fpn_dim, self.sdim, min_level + 3, up=self.upsample)
-        self.conv_3b = CrossUpSamp(self.sdim, self.sdim, min_level + 4, up=self.upsample)
-        # self.conv_3c = CrossUpSamp(self.sdim, self.sdim, min_level + 5)
+            # check if the difference is non zero
+            if lvl_diff > 0:
+                # add the required number of upsampling stages
+                for j in range(i, max_level):
+                    if i == j:
+                        modules.append(CrossUpSamp(fpn_dim, self.sdim, j + 1, up=self.upsample))
+                    else:
+                        modules.append(CrossUpSamp(self.sdim, self.sdim, j + 1, up=self.upsample))
+            else:
+                modules = [nn.Conv1d(fpn_dim, self.sdim, kernel_size=1, stride=1)]
 
-        self.conv_4a = CrossUpSamp(fpn_dim, self.sdim, min_level + 4, up=self.upsample)
-        # self.conv_4b = CrossUpSamp(self.sdim, self.sdim, min_level + 5)
+            # add the moddules to the global list for the decoding stage
+            self.cross.append(nn.Sequential(*modules))
 
-        # self.conv_5a = CrossUpSamp(fpn_dim, self.sdim, min_level + 5)
-
-        self.conv_5a = nn.Conv1d(fpn_dim, self.sdim, kernel_size=1, stride=1)
+        # final conv
+        self.out_conv = MeshConv(self.sdim, out_ch, max_level)
+        self.out_bn = nn.BatchNorm1d(out_ch)
 
         # initialise the modules
         self.down = nn.ModuleList(self.down)
         self.up = nn.ModuleList(self.up)
+        self.cross = nn.ModuleList(self.cross)
 
     def forward(self, x):
-        # pass through initial MESHCONV
+        # in conv
         x_d = [self.in_relu(self.in_bn(self.in_conv(x)))]
 
-        # loop through and pass the input through the encoder
+        # encoder
         for i in range(self.levels):
             x_d.append(self.down[i](x_d[-1]))
 
-        # initial cross connection at lvl-0
+        # initial cross connection at lowest level to start fpn
         x_u = [self.cross_relu(self.cross_bn(self.cross_conv(x_d[-1])))]
 
         # feature pyramid
-        x_u.append(self.up[0](x_u[-1], x_d[self.levels - 1]))
-        x_u.append(self.up[1](x_u[-1], x_d[self.levels - 2]))
-        x_u.append(self.up[2](x_u[-1], x_d[self.levels - 3]))
-        x_u.append(self.up[3](x_u[-1], x_d[self.levels - 4]))
-        # x_u.append(self.up[4](x_u[-1], x_d[self.levels - 5]))
+        for i in range(self.levels):
+            x_u.append(self.up[i](x_u[-1], x_d[self.levels - (i + 1)]))
 
-        # detection stage
-        x1 = self.conv_1d(self.conv_1c(self.conv_1b(self.conv_1a(x_u[0]))))
-        x2 = self.conv_2c(self.conv_2b(self.conv_2a(x_u[1])))
-        x3 = self.conv_3b(self.conv_3a(x_u[2]))
-        x4 = self.conv_4a(x_u[3])
-        x5 = self.conv_5a(x_u[4])
-        # x6 = self.conv_6a(x_u[5])
+        # initialise a list to store the final feature maps (all at max level)
+        x_c = []
 
-        # add all the pyramid levels together
-        x = x1 + x2 + x3 + x4 + x5
+        # decoder
+        for i in range(self.levels + 1):
+            # grab the appropriate pyramid feature map
+            x = x_u[i]
 
-        # conv + 4x upsample for final prediction
+            # loop through the upsampling stages
+            for module in self.cross[i]:
+                x = module(x)
+
+            # add the current decoder feature map to the global list
+            x_c.append(x)
+
+        # convert from list to tensor
+        x_c = torch.stack(x_c, dim=0)
+
+        # add the decoder feature maps
+        x = torch.sum(x_c, dim=0)
+
+        # out conv
         x = self.out_bn(self.out_conv(x))
-        # # x = self.out_conv_b(self.out_conv_a(x))
-        # x = self.out_relu_a(self.out_bn_a(self.out_conv(x)))
-        # x = self.out_relu_b(self.out_bn_b(self.out_up_a(x, x_d[1])))
-        # x = self.out_up_b(x, x_d[0])
 
         # return the output of the model
         return x
+
 
 if __name__ == "__main__":
     # from torch.profiler import profile, ProfilerActivity
     from torchinfo import summary
     import torch
 
-    model = SphericalFPNetL5(4, 15, min_level=1, fdim=32, up="bilinear")
-    inputs = torch.randn(2, 4, 10242)
+    model = SphericalFPNet(4, 15, max_level=5, min_level=0, fdim=32, up="bilinear")
 
-    summary(model, input_size=(2, 4, 10242))
+    inputs = torch.randn(1, 4, 10242)
+
+    summary(model, input_size=(1, 4, 10242))

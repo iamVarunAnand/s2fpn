@@ -1,5 +1,5 @@
 # import the necessary packages
-from uscnn.models import SphericalFPNet, SphericalFPNetLarge, SphericalFPNetL5
+from uscnn.models import SphericalFPNet
 from torch.utils.data import DataLoader
 from uscnn.models import SphericalUNet
 from collections import OrderedDict
@@ -248,10 +248,6 @@ def main():
     if not os.path.exists(args.log_dir):
         os.makedirs(args.log_dir)
 
-    # shutil.copy2(__file__, os.path.join(args.log_dir, "script.py"))
-    # shutil.copy2("model.py", os.path.join(args.log_dir, "model.py"))
-    # shutil.copy2("run.sh", os.path.join(args.log_dir, "run.sh"))
-
     logger = logging.getLogger("train")
     logger.setLevel(logging.DEBUG)
     logger.handlers = []
@@ -262,7 +258,7 @@ def main():
 
     logger.info("%s", repr(args))
 
-    # Initialise Weights and Biases Run #
+    # initialise Weights and Biases run
     config = {"Batch Size": args.batch_size, "Epochs": args.epochs, "LR": args.lr, "fdim": args.feat}
     wandb.init(project='SCNN', entity='tomvarun', config=config)
 
@@ -275,9 +271,9 @@ def main():
     train_loader = DataLoader(trainset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(valset, batch_size=args.batch_size, shuffle=True, drop_last=False)
 
-    # Load Model
+    # load model
     if args.model == "fpn":
-        model = SphericalFPNetL5(in_ch=len(args.in_ch), out_ch=len(
+        model = SphericalFPNet(in_ch=len(args.in_ch), out_ch=len(
             classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat, up=args.upsample)
     elif args.model == "unet":
         model = SphericalUNet(in_ch=len(args.in_ch), out_ch=len(

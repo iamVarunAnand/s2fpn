@@ -27,10 +27,9 @@ class _MeshConv(nn.Module):
             self.register_parameter('bias', None)
 
         # initialise the PDO parameters (trainable)
-        # self.coeffs = Parameter(torch.Tensor(out_channels, in_channels, self.ncoeff))
         self.coeffs = Parameter(torch.Tensor(in_channels * self.ncoeff, out_channels))
         self.initialise_weights()
-        
+
         # grab the mesh file
         pkl = MESHES[mesh_lvl]
         self.pkl = pkl
@@ -289,84 +288,6 @@ class DownSamp(nn.Module):
         return x[..., :self.nv_prev]
 
 
-class UpSamp(nn.Module):
-    def __init__(self, mesh_lvl):
-        # make a call to the parent constructor
-        super(UpSamp, self).__init__()
-
-        # initialise the instance variables
-        ico = MESHES[mesh_lvl - 1]
-        ico_up = MESHES[mesh_lvl]
-        self.ico = ico
-        self.ico_up = ico_up
-        self.nv = ico_up["nv"]
-        self.nv_prev = ico["nv"]
-        self.nv_pad = self.nv - self.nv_prev
-
-    def forward(self, x):
-        # upsample and return
-        # input has size batch_size x 256 x nv_prev
-
-        ones_pad = torch.ones(*x.size()[:2], self.nv_pad).to(x.device)
-        x = torch.cat((x, ones_pad), dim=-1)
-
-        x[:, :, (self.ico_up["F"])[3:][::4, 0]] = (x[:, :, (self.ico["F"])[:, 0]] + x[:, :, (self.ico["F"])[:, 1]]) / 2
-        x[:, :, (self.ico_up["F"])[3:][::4, 1]] = (x[:, :, (self.ico["F"])[:, 1]] + x[:, :, (self.ico["F"])[:, 2]]) / 2
-        x[:, :, (self.ico_up["F"])[3:][::4, 2]] = (x[:, :, (self.ico["F"])[:, 2]] + x[:, :, (self.ico["F"])[:, 1]]) / 2
-
-        return x
-
-
-class UpSampNearest(nn.Module):
-    def __init__(self, mesh_lvl):
-        # make a call to the parent constructor
-        super(UpSampNearest, self).__init__()
-
-        # initialise the instance variables
-        ico = MESHES[mesh_lvl - 1]
-        ico_up = MESHES[mesh_lvl]
-        self.ico = ico
-        self.ico_up = ico_up
-        self.nv = ico_up["nv"]
-        self.nv_prev = ico["nv"]
-        self.nv_pad = self.nv - self.nv_prev
-
-    def forward(self, x):
-        # upsample and return
-        # input has size batch_size x 256 x nv_prev
-
-        ones_pad = torch.ones(*x.size()[:2], self.nv_pad).to(x.device)
-        x = torch.cat((x, ones_pad), dim=-1)
-
-        x[:, :, (self.ico_up["F"])[3:][::4, 0]] = x[:, :, (self.ico["F"])[:, 0]]
-        x[:, :, (self.ico_up["F"])[3:][::4, 1]] = x[:, :, (self.ico["F"])[:, 1]]
-        x[:, :, (self.ico_up["F"])[3:][::4, 2]] = x[:, :, (self.ico["F"])[:, 2]]
-
-        return x
-
-
-class UpSampPad(nn.Module):
-    def __init__(self, mesh_lvl):
-        # make a call to the parent constructor
-        super(UpSampPad, self).__init__()
-
-        # initialise the instance variables
-        ico_up = MESHES[mesh_lvl]
-        self.ico_up = ico_up
-        self.nv = ico_up["nv"]
-        self.nv_prev = ico_up["nv_prev"]
-        self.nv_pad = self.nv - self.nv_prev
-
-    def forward(self, x):
-        # upsample and return
-        # input has size batch_size x 256 x nv_prev
-
-        ones_pad = torch.ones(*x.size()[:2], self.nv_pad).to(x.device)
-        x = torch.cat((x, ones_pad), dim=-1)
-
-        return x
-
-
 class ResBlock(nn.Module):
     def __init__(self, in_chan, neck_chan, out_chan, level, coarsen):
         # make a call to the parent constructor
@@ -382,17 +303,14 @@ class ResBlock(nn.Module):
         # CONV 1x1 -> BN
         self.conv_1a = nn.Conv1d(in_chan, neck_chan, kernel_size=1, stride=1)
         self.bn_1a = nn.BatchNorm1d(neck_chan)
-        # self.bn_1a = nn.GroupNorm(32, neck_chan)
 
         # MESHCONV -> BN
         self.conv_2a = MeshConv(neck_chan, neck_chan, mesh_lvl=lvl, stride=1)
         self.bn_2a = nn.BatchNorm1d(neck_chan)
-        # self.bn_2a = nn.GroupNorm(32, neck_chan)
 
         # CONV 1x1 -> BN
         self.conv_3a = nn.Conv1d(neck_chan, out_chan, kernel_size=1, stride=1)
         self.bn_3a = nn.BatchNorm1d(out_chan)
-        # self.bn_3a = nn.GroupNorm(32, out_chan)
 
         # RELU
         self.relu = nn.ReLU(inplace=True)
@@ -415,7 +333,6 @@ class ResBlock(nn.Module):
         if self.diff_chan or coarsen:
             self.conv_1b = nn.Conv1d(in_chan, out_chan, kernel_size=1, stride=1)
             self.bn_1b = nn.BatchNorm1d(out_chan)
-            # self.bn_1b = nn.GroupNorm(32, out_chan)
 
             if coarsen:
                 self.seq_b = nn.Sequential(self.conv_1b, self.down, self.bn_1b)
