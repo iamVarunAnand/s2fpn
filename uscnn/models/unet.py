@@ -5,7 +5,7 @@ import torch
 
 
 class Up(nn.Module):
-    def __init__(self, in_ch, out_ch, level, bias=True):
+    def __init__(self, in_ch, out_ch, level):
         """
             uses the mesh_file for the mesh of one-level up
         """
@@ -35,7 +35,7 @@ class Up(nn.Module):
 
 
 class Down(nn.Module):
-    def __init__(self, in_ch, out_ch, level, bias=True):
+    def __init__(self, in_ch, out_ch, level, downsample="drop"):
         """
             use the mesh_file for the mesh of one-level down
         """
@@ -44,7 +44,7 @@ class Down(nn.Module):
         super(Down, self).__init__()
 
         # res block
-        self.conv = ResBlock(in_ch, in_ch, out_ch, level + 1, True)
+        self.conv = ResBlock(in_ch, in_ch, out_ch, level + 1, True, downsample=downsample)
 
     def forward(self, x):
         # pass the input through the res block and return
@@ -52,7 +52,7 @@ class Down(nn.Module):
 
 
 class SphericalUNet(nn.Module):
-    def __init__(self, in_ch, out_ch, max_level=5, min_level=0, fdim=16):
+    def __init__(self, in_ch, out_ch, max_level=5, min_level=0, fdim=32, downsample="drop"):
         # make a call to the parent class constructor
         super(SphericalUNet, self).__init__()
 
@@ -77,12 +77,12 @@ class SphericalUNet(nn.Module):
             lvl = max_level - i - 1
 
             # add a downsample block
-            self.down.append(Down(ch_in, ch_out, lvl))
+            self.down.append(Down(ch_in, ch_out, lvl, downsample=downsample))
 
         # bottleneck
         ch_in = fdim * (2 ** (self.levels - 1))
         ch_out = fdim * (2 ** (self.levels - 1))
-        self.down.append(Down(ch_in, ch_out, min_level))
+        self.down.append(Down(ch_in, ch_out, min_level, downsample=downsample))
 
         # decoder
         for i in range(self.levels - 1):
@@ -123,9 +123,9 @@ class SphericalUNet(nn.Module):
         return x
 
 
-# if __name__ == "__main__":
-#     from torchinfo import summary
+if __name__ == "__main__":
+    from torchinfo import summary
 
-#     model = SphericalUNet(4, 15, max_level=5, fdim=32)
+    model = SphericalUNet(4, 15, max_level=5, fdim=32, downsample="average")
 
-#     summary(model, input_size=(1, 4, 10242))
+    summary(model, input_size=(1, 4, 10242))

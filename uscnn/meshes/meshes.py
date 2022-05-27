@@ -20,6 +20,11 @@ def load_mesh(path):
     nv = data["V"].shape[0]
     F = data["F"]
 
+    try:
+        VA = sparse2tensor(data["VA"])
+    except KeyError:
+        VA = None
+
     # return the matrices as a dictionary
     return {
         "G": G,
@@ -29,18 +34,19 @@ def load_mesh(path):
         "F2V": F2V,
         "nv_prev": nv_prev,
         "nv": nv,
-        "F": F
+        "F": F,
+        "VA": VA
     }
 
 
 # load in all the mesh files
 MESHES = {
-    0: load_mesh("uscnn/meshes/icosphere_0.pkl"),
-    1: load_mesh("uscnn/meshes/icosphere_1.pkl"),
-    2: load_mesh("uscnn/meshes/icosphere_2.pkl"),
-    3: load_mesh("uscnn/meshes/icosphere_3.pkl"),
-    4: load_mesh("uscnn/meshes/icosphere_4.pkl"),
-    5: load_mesh("uscnn/meshes/icosphere_5.pkl"),
-    6: load_mesh("uscnn/meshes/icosphere_6.pkl"),
-    7: load_mesh("uscnn/meshes/icosphere_7.pkl"),
+    0: load_mesh("uscnn/meshes/v2/icosphere_0.pkl"),
+    1: load_mesh("uscnn/meshes/v2/icosphere_1.pkl"),
+    2: load_mesh("uscnn/meshes/v2/icosphere_2.pkl"),
+    3: load_mesh("uscnn/meshes/v2/icosphere_3.pkl"),
+    4: load_mesh("uscnn/meshes/v2/icosphere_4.pkl"),
+    5: load_mesh("uscnn/meshes/v2/icosphere_5.pkl"),
+    6: load_mesh("uscnn/meshes/v2/icosphere_6.pkl"),
+    7: load_mesh("uscnn/meshes/v2/icosphere_7.pkl"),
 }

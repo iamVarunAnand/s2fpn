@@ -246,7 +246,7 @@ class MeshConvTransposeBilinear(_MeshConv):
         input[:, :, (self.pkl["F"])[3:][::4, 1]] = (
             input[:, :, (self.ico["F"])[:, 1]] + input[:, :, (self.ico["F"])[:, 2]]) / 2
         input[:, :, (self.pkl["F"])[3:][::4, 2]] = (
-            input[:, :, (self.ico["F"])[:, 2]] + input[:, :, (self.ico["F"])[:, 1]]) / 2
+            input[:, :, (self.ico["F"])[:, 2]] + input[:, :, (self.ico["F"])[:, 0]]) / 2
 
         # gradient
         grad_face = spmatmul(input, self.G)
@@ -288,8 +288,21 @@ class DownSamp(nn.Module):
         return x[..., :self.nv_prev]
 
 
+class AverageDownSamp(nn.Module):
+    def __init__(self, lvl):
+        # make a call to the parent constructor
+        super(AverageDownSamp, self).__init__()
+
+        # initialise the instance variables
+        self.pkl = MESHES[lvl]
+
+    def forward(self, x):
+        # downsample and return
+        return spmatmul(x, self.pkl["VA"])
+
+
 class ResBlock(nn.Module):
-    def __init__(self, in_chan, neck_chan, out_chan, level, coarsen):
+    def __init__(self, in_chan, neck_chan, out_chan, level, coarsen, downsample="drop"):
         # make a call to the parent constructor
         super(ResBlock, self).__init__()
 
@@ -317,7 +330,7 @@ class ResBlock(nn.Module):
 
         # DOWNSAMPLE
         self.nv_prev = self.conv_2a.nv_prev
-        self.down = DownSamp(self.nv_prev)
+        self.down = AverageDownSamp(lvl) if downsample == "average" else DownSamp(self.nv_prev)
 
         # main branch
         if coarsen:

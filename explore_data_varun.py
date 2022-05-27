@@ -1,8 +1,12 @@
 # import the necessary packages
-from uscnn.utils import Icosphere
+from scipy import sparse
+from sklearn import neighbors
+from uscnn.utils import Icosphere, sparse2tensor, spmatmul
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 import meshplot as mp
 import numpy as np
+import torch
 import glob
 import os
 
@@ -41,39 +45,52 @@ if __name__ == "__main__":
 
     # initialise an icosphere
     ico = Icosphere(level=level)
+    ico_down = Icosphere(level=level - 1)
 
-    # load a sample image
-    arr = np.load(paths[0])
-    img, lbl = arr["data"], arr["labels"]
+    # # print(ico_down.vertices.shape)
 
-    # img = img[:ico.vertices.shape[0]]
-    # zeros_pad = np.zeros((nv_pad, 4))
-    # img = np.concatenate((img, zeros_pad))
+    # # load a sample image
+    # arr = np.load(paths[0])
+    # img, lbl = arr["data"][:ico.nv, :3], arr["labels"]
 
-    # for face in tqdm(ico.faces, total=ico.faces.shape[0]):
-    #     # get the coordinates for the vertices of the current face
-    #     coords = ico.vertices[face]
+    # out = np.zeros((ico_down.nv, 3))
+    # # # out[ico.faces[3:][::4, 0], 2] = 255
 
-    #     # compute the coordinates of the midpoint vertices
-    #     mid = np.vstack([[coords[x, :]] for x in [[0, 1], [1, 2], [0, 2]]]).mean(axis=1)
+    # stack1 = np.stack([ico_down.faces[:, 0], ico.faces[3:][::4, 0], ico.faces[3:][::4, 2]], axis=-1)
+    # stack2 = np.stack([ico_down.faces[:, 1], ico.faces[3:][::4, 0], ico.faces[3:][::4, 1]], axis=-1)
+    # stack3 = np.stack([ico_down.faces[:, 2], ico.faces[3:][::4, 1], ico.faces[3:][::4, 2]], axis=-1)
+    # stack = np.vstack([stack1, stack2, stack3])
 
-    #     # normalize the midpoint coordinates
-    #     mid = normalize(mid)[:, None, :]
+    # stack = stack[stack[:, 0].argsort()]
 
-    #     # get the indices of the midpoint vertices
-    #     idx1 = np.argmax((1 * np.equal(ico_up.vertices, mid[0])).sum(axis=1))
-    #     idx2 = np.argmax((1 * np.equal(ico_up.vertices, mid[1])).sum(axis=1))
-    #     idx3 = np.argmax((1 * np.equal(ico_up.vertices, mid[2])).sum(axis=1))
+    # u, idx = np.unique(stack[:, 0], return_index=True)
+    # splits = np.split(stack[:, 1:], idx[1:])
 
-    #     # bilinear interpolation
-    #     av1 = (img[face[0]] + img[face[1]]) / 2
-    #     av2 = (img[face[1]] + img[face[2]]) / 2
-    #     av3 = (img[face[0]] + img[face[2]]) / 2
+    # sd, si, sj = [], [], []
+    # for i, s in enumerate(splits):
+    #     neighbours = np.unique(s.flatten())
 
-    #     img[idx1] = av1
-    #     img[idx2] = av2
-    #     img[idx3] = av3
+    #     for vertex in neighbours:
+    #         sd.append(1 / neighbours.shape[0])
+    #         si.append(i)
+    #         sj.append(vertex)
 
-    # plot the image and save it to disk
-    output_img_path = f"figs/tmp/lvl{level}_lbl.html"
-    mp.plot(ico.vertices, ico.faces, c=np.array([COLORS[x] for x in lbl]), filename=output_img_path)
+    # print(len(sd), len(si), len(sj))
+
+    # VA = sparse.coo_matrix((sd, (si, sj)), shape=(ico_down.nv, ico.nv))
+    # VA = sparse2tensor(VA)
+    # out = spmatmul(torch.Tensor(img.T[None, ...]), VA).numpy()[0].T
+
+    # print(out.shape)
+
+    # # out[i] = np.mean(img[v], axis=0)
+
+    # # plot the image and save it to disk
+    # output_img_path = f"figs/avg_downsample.html"
+    # mp.plot(ico_down.vertices, ico_down.faces, c=out, filename=output_img_path)
+
+    # # output_img_path = f"figs/original.html"
+    # # mp.plot(ico.vertices, ico.faces, c=img, filename=output_img_path)
+
+    # # output_img_path = f"figs/drop_downsample.html"
+    # # mp.plot(ico_down.vertices, ico_down.faces, c=img[:ico_down.nv], filename=output_img_path)

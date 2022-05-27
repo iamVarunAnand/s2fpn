@@ -1,9 +1,7 @@
 # import the necessary packages
 from ..layers import MeshConv, ResBlock, MeshConvTranspose, MeshConvTransposeBilinear
 from torch import nn
-import os
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import torch
 
 
 class Up(nn.Module):
@@ -106,10 +104,8 @@ class SphericalFPNet(nn.Module):
             # add a downsample block (512 at L0)
             if i == (self.levels - 1) and min_level == 0:
                 self.down.append(Down(ch_in, ch_in, lvl))
-                print(f"encoder: {ch_in}-{ch_in}-{lvl}")
             else:
                 self.down.append(Down(ch_in, ch_out, lvl))
-                print(f"encoder: {ch_in}-{ch_out}-{lvl}")
 
         # number of channels at lowest level
         in_ch = ch_out if min_level != 0 else ch_in
