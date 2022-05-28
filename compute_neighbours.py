@@ -2,13 +2,19 @@
 from uscnn.utils import Icosphere, sparse2tensor, spmatmul
 from scipy import sparse
 import numpy as np
+import argparse
 import pickle
 import torch
 
 
 if __name__ == "__main__":
+    # construct an argument parser to parse the command line arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-l", "--level", required=True, type=int, help="mesh level")
+    args = vars(ap.parse_args())
+
     # constants
-    level = 7
+    level = args["level"]
 
     # initialise the icospheres
     ico = Icosphere(level=level)

@@ -296,9 +296,13 @@ class AverageDownSamp(nn.Module):
         # initialise the instance variables
         self.pkl = MESHES[lvl]
 
+        # register VA as a non-trainable parameter
+        VA = self.pkl["VA"]
+        self.register_buffer("VA", VA)
+
     def forward(self, x):
         # downsample and return
-        return spmatmul(x, self.pkl["VA"])
+        return spmatmul(x, self.VA)
 
 
 class ResBlock(nn.Module):
