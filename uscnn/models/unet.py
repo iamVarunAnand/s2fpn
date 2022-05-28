@@ -1,11 +1,11 @@
 # import the necessary packages
-from ..layers import MeshConv, MeshConvTranspose, ResBlock
+from ..layers import MeshConv, MeshConvTranspose, MeshConvTransposeBilinear, MeshConvTransposeNearest, ResBlock
 from torch import nn
 import torch
 
 
 class Up(nn.Module):
-    def __init__(self, in_ch, out_ch, level):
+    def __init__(self, in_ch, out_ch, level, upsample=MeshConvTranspose):
         """
             uses the mesh_file for the mesh of one-level up
         """
@@ -15,7 +15,7 @@ class Up(nn.Module):
 
         # MESHCONV.T
         half_in = int(in_ch / 2)
-        self.up = MeshConvTranspose(half_in, half_in, level, stride=2)
+        self.up = upsample(half_in, half_in, level, stride=2)
 
         # res block
         self.conv = ResBlock(in_ch, out_ch, out_ch, level, False)
@@ -52,7 +52,15 @@ class Down(nn.Module):
 
 
 class SphericalUNet(nn.Module):
-    def __init__(self, in_ch, out_ch, max_level=5, min_level=0, fdim=32, downsample="drop"):
+    def __init__(self,
+                 in_ch,
+                 out_ch,
+                 max_level=5,
+                 min_level=0,
+                 fdim=32,
+                 downsample="drop",
+                 upsample="zero-pad"):
+
         # make a call to the parent class constructor
         super(SphericalUNet, self).__init__()
 
@@ -61,6 +69,14 @@ class SphericalUNet(nn.Module):
         self.max_level = max_level
         self.min_level = min_level
         self.levels = max_level - min_level
+
+        # upsampling operation
+        if upsample == "zero-pad":
+            self.upsample = MeshConvTranspose
+        elif upsample == "nearest":
+            self.upsample = MeshConvTransposeNearest
+        elif upsample == "bilinear":
+            self.upsample = MeshConvTransposeBilinear
 
         # initialise lists to store the encoder and decoder stages
         self.down, self.up = [], []
@@ -92,10 +108,10 @@ class SphericalUNet(nn.Module):
             lvl = min_level + i + 1
 
             # add an upsample block
-            self.up.append(Up(ch_in, ch_out, lvl))
+            self.up.append(Up(ch_in, ch_out, lvl, upsample=self.upsample))
 
         # final upsample
-        self.up.append(Up(fdim * 2, fdim, max_level))
+        self.up.append(Up(fdim * 2, fdim, max_level, upsample=self.upsample))
 
         # initialise the encoder and decoders as nn modules
         self.down = nn.ModuleList(self.down)
@@ -126,6 +142,6 @@ class SphericalUNet(nn.Module):
 if __name__ == "__main__":
     from torchinfo import summary
 
-    model = SphericalUNet(4, 15, max_level=5, fdim=32, downsample="average")
+    model = SphericalUNet(4, 15, max_level=5, fdim=32, downsample="average", upsample="nearest")
 
     summary(model, input_size=(1, 4, 10242))

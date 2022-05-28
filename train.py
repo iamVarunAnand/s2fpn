@@ -267,9 +267,9 @@ def main():
 
     # rename the weights and biases run
     if args.model == "fpn":
-        wandb.run.name = f"ugscnn fpn l{args.min_level}:{args.max_level} - {args.upsample} - fold {args.fold}"
+        wandb.run.name = f"ugscnn fpn l{args.min_level}:{args.max_level} - {args.downsample} - {args.upsample} - fold {args.fold}"
     else:
-        wandb.run.name = f"ugscnn unet - {args.upsample} - fold {args.fold}"
+        wandb.run.name = f"ugscnn unet - {args.downsample} - {args.upsample} - fold {args.fold}"
 
     wandb.run.save()
 
@@ -281,10 +281,10 @@ def main():
     # load model
     if args.model == "fpn":
         model = SphericalFPNet(in_ch=len(args.in_ch), out_ch=len(
-            classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat, up=args.upsample)
+            classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat, downsample=args.downsample, upsample=args.upsample)
     elif args.model == "unet":
         model = SphericalUNet(in_ch=len(args.in_ch), out_ch=len(
-            classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat, downsample=args.downsample)
+            classes), max_level=args.max_level, min_level=args.min_level, fdim=args.feat, downsample=args.downsample, upsample=args.upsample)
     else:
         print("Model Not Recognised")
 
