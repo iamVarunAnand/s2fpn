@@ -55,7 +55,7 @@ if __name__ == "__main__":
     VA = sparse.coo_matrix((sd, (si, sj)), shape=(ico_down.nv, ico.nv))
 
     # load the appropriate mesh file
-    mesh = pickle.load(open(f"uscnn/meshes/icosphere_{level - 1}.pkl", "rb"))
+    mesh = pickle.load(open(f"uscnn/meshes/v1/icosphere_{level - 1}.pkl", "rb"))
 
     # add in the VA matrix to the mesh
     mesh["VA"] = VA

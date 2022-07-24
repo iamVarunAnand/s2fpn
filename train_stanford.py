@@ -1,7 +1,6 @@
 # import the necessary packages
-from uscnn.models import SphericalFPNet
+from uscnn.models import SphericalUNet, SphericalFPNet
 from torch.utils.data import DataLoader
-from uscnn.models import SphericalUNet
 from collections import OrderedDict
 from data import S2D3DSegLoader
 from tabulate import tabulate
@@ -200,7 +199,7 @@ def test(args, model, test_loader, epoch, device, logger, keep_id=None):
 
 def main():
     # Training settings
-    parser = argparse.ArgumentParser(description='Segmentation')
+    parser = argparse.ArgumentParser(description='Indoor Segmentation')
     parser.add_argument('--Name', type=str, default="NoName",
                         help='Run Name')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
@@ -270,8 +269,6 @@ def main():
         wandb.run.name = f"ugscnn fpn l{args.min_level}:{args.max_level} - {args.downsample} - {args.upsample} - fold {args.fold}"
     else:
         wandb.run.name = f"ugscnn unet - {args.downsample} - {args.upsample} - fold {args.fold}"
-
-    wandb.run.save()
 
     trainset = S2D3DSegLoader(args.data_folder, "train", fold=args.fold, sp_level=args.max_level, in_ch=len(args.in_ch))
     valset = S2D3DSegLoader(args.data_folder, "test", fold=args.fold, sp_level=args.max_level, in_ch=len(args.in_ch))
