@@ -1,5 +1,5 @@
 # import the necessary packages
-from ..layers import MeshConv, MeshConvTranspose, MeshConvTransposeBilinear, MeshConvTransposeNearest, ResBlock
+from ..layers import MeshConv, MeshConvTranspose, MeshConvTransposeBilinear, MeshConvTransposeNearest, ResBlockV2
 from torch import nn
 import torch
 
@@ -18,7 +18,7 @@ class Up(nn.Module):
         self.up = upsample(half_in, half_in, level, stride=2)
 
         # res block
-        self.conv = ResBlock(in_ch, out_ch, out_ch, level, False)
+        self.conv = ResBlockV2(in_ch, out_ch, out_ch, level, False)
 
     def forward(self, x1, x2):
         # upsample the previous pyramid level
@@ -44,7 +44,7 @@ class Down(nn.Module):
         super(Down, self).__init__()
 
         # res block
-        self.conv = ResBlock(in_ch, in_ch, out_ch, level + 1, True, downsample=downsample)
+        self.conv = ResBlockV2(in_ch, in_ch, out_ch, level + 1, True, downsample=downsample)
 
     def forward(self, x):
         # pass the input through the res block and return

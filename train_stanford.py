@@ -326,7 +326,7 @@ def main():
     if args.optim == "sgd":
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
     else:
-        optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
 
     if args.decay:
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.9)

@@ -374,3 +374,74 @@ class ResBlock(nn.Module):
 
         # return the computation of the ResBlock
         return out
+
+
+class ResBlockV2(nn.Module):
+    def __init__(self, in_chan, neck_chan, out_chan, level, coarsen, downsample="drop"):
+        # make a call to the parent constructor
+        super(ResBlockV2, self).__init__()
+
+        # get the path to the mesh file
+        lvl = level - 1 if coarsen else level
+
+        # initialise the instance variables
+        self.coarsen = coarsen
+        self.diff_chan = (in_chan != out_chan)
+
+        # CONV 1x1 -> BN
+        self.conv_1a = nn.Conv1d(in_chan, neck_chan, kernel_size=1, stride=1)
+        self.bn_1a = nn.BatchNorm1d(neck_chan)
+
+        # MESHCONV -> BN
+        self.conv_2a = MeshConv(neck_chan, neck_chan, mesh_lvl=lvl + 1, stride=1)
+        self.bn_2a = nn.BatchNorm1d(neck_chan)
+
+        # CONV 1x1 -> BN
+        self.conv_3a = nn.Conv1d(neck_chan, out_chan, kernel_size=1, stride=1)
+        self.bn_3a = nn.BatchNorm1d(out_chan)
+
+        # RELU
+        self.relu = nn.ReLU(inplace=True)
+
+        # DOWNSAMPLE
+        self.nv_prev = self.conv_2a.nv_prev
+        self.down = AverageDownSamp(lvl) if downsample == "average" else DownSamp(self.nv_prev)
+
+        # main branch
+        if coarsen:
+            self.seq_a = nn.Sequential(self.conv_1a, self.bn_1a, self.relu,
+                                       self.conv_2a, self.bn_2a, self.relu, self.down,
+                                       self.conv_3a, self.bn_3a)
+        else:
+            self.seq_a = nn.Sequential(self.conv_1a, self.bn_1a, self.relu,
+                                       self.conv_2a, self.bn_2a, self.relu,
+                                       self.conv_3a, self.bn_3a)
+
+        # skip connection
+        if self.diff_chan or coarsen:
+            self.conv_1b = nn.Conv1d(in_chan, out_chan, kernel_size=1, stride=1)
+            self.bn_1b = nn.BatchNorm1d(out_chan)
+
+            if coarsen:
+                self.seq_b = nn.Sequential(self.conv_1b, self.down, self.bn_1b)
+            else:
+                self.seq_b = nn.Sequential(self.conv_1b, self.bn_1b)
+
+    def forward(self, x):
+        # skip connection
+        if self.diff_chan or self.coarsen:
+            x2 = self.seq_b(x)
+        else:
+            x2 = x
+
+        # main branch
+        x1 = self.seq_a(x)
+
+        # addition
+        out = x1 + x2
+
+        # relu
+        out = self.relu(out)
+
+        # return the computation of the ResBlock
+        return out

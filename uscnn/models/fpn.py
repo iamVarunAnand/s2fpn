@@ -1,5 +1,5 @@
 # import the necessary packages
-from ..layers import MeshConv, ResBlock, MeshConvTranspose, MeshConvTransposeNearest, MeshConvTransposeBilinear
+from ..layers import MeshConv, ResBlockV2, MeshConvTranspose, MeshConvTransposeNearest, MeshConvTransposeBilinear
 from torch import nn
 import torch
 
@@ -52,7 +52,7 @@ class Down(nn.Module):
         super(Down, self).__init__()
 
         # res block
-        self.conv = ResBlock(in_ch, in_ch, out_ch, level + 1, True, downsample=downsample)
+        self.conv = ResBlockV2(in_ch, in_ch, out_ch, level + 1, True, downsample=downsample)
 
     def forward(self, x):
         # pass the input through the res block and return
@@ -82,8 +82,8 @@ class SphericalFPNet(nn.Module):
                  max_level=5,
                  min_level=0,
                  fdim=32,
-                 fpn_dim=256,
-                 sdim=128):
+                 fpn_dim=64,
+                 sdim=32):
 
         # make a call to the parent class constructor
         super(SphericalFPNet, self).__init__()
