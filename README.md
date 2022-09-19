@@ -1,5 +1,4 @@
 ## S2FPN: Spherical Feature Pyramid Networks for Image Segmentation
-[Varun Anand](https://www.linkedin.com/in/varun-anand-ed), [Thomas Walker](https://www.linkedin.com/in/thomas-walker-983b091b1/), [Pavlos Andreadis](https://www.inf.ed.ac.uk/people/staff/Pavlos_Andreadis.html)
 
 ![architecture](s2fpn.png "Architecture of the proposed S2FPN model.")
 
